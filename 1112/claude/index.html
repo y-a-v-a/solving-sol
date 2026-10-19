@@ -1,0 +1,413 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>claude ❤︎ sol lewitt • #1112</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--
+  Wall Drawing #1112 (2003) - Sol LeWitt
+  Square with broken bands of color.
+
+  Acrylic paint. First installed at Rhona Hoffman Gallery, Chicago.
+
+  One of the late, exuberant acrylic drawings, in the full set of primary
+  and secondary colours. Its one hard rule, as MASS MoCA records it: no
+  band of a given colour may touch another band of that same colour.
+
+  That rule is a map-colouring problem. The drafters solved it on the wall
+  with colour-coded Post-it notes, and still a few pieces of the same
+  colour ended up touching and had to be painted over. So it goes here
+  too: the square is taped off, the breaks are pencilled in, every piece
+  gets its note, and then the painting starts. Now and then a drafter
+  reaches for the wrong pot.
+
+  Touching includes touching at a corner; this drafter is strict.
+
+  Point at (or tap) a piece to see what it touches. Click beside the
+  square, or double-click, for another wall.
+
+  claude • 2026
+-->
+<style>
+html,body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #efede8;
+}
+canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: pointer;
+}
+#touch {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 0 16px 14px;
+  color: rgba(40, 38, 34, 0.6);
+  font: 11px/1.4 "Helvetica Neue", Helvetica, Arial, sans-serif;
+  letter-spacing: 0.08em;
+  pointer-events: none;
+}
+</style>
+<canvas></canvas>
+<div id="touch"></div>
+<script>
+// the full set of primary and secondary colours, in acrylic
+var COLORS = [
+  { key: 'R', name: 'red', fill: '#d7262c', note: '#f2a3a0' },
+  { key: 'Y', name: 'yellow', fill: '#f8cf1f', note: '#fbe88f' },
+  { key: 'B', name: 'blue', fill: '#1f4ea3', note: '#a5bce6' },
+  { key: 'O', name: 'orange', fill: '#f07d1c', note: '#f8c08c' },
+  { key: 'G', name: 'green', fill: '#1d8a4a', note: '#a6dbb6' },
+  { key: 'P', name: 'purple', fill: '#5b2c86', note: '#c8afe0' }
+];
+
+var wall;
+var frame;
+
+function wallDrawing1112() {
+  'use strict';
+
+  cancelAnimationFrame(frame);
+
+  var canvas = document.getElementsByTagName('canvas')[0];
+  var ctx = canvas.getContext('2d');
+  var ratio = window.devicePixelRatio || 1;
+  var width = canvas.clientWidth;
+  var height = canvas.clientHeight;
+  canvas.width = width * ratio;
+  canvas.height = height * ratio;
+
+  // Square ...
+  var side = Math.floor(Math.min(width * 0.86, height * 0.8));
+  var left = Math.round((width - side) / 2);
+  var top = Math.round((height - side) / 2 - height * 0.015);
+
+  // ... with broken bands of color.
+  var pieces;
+  do {
+    pieces = breakBands();
+  } while (!colour(pieces));
+
+  // once in a while a drafter reaches for the wrong pot
+  var slip = Math.random() < 0.75 ? pickSlip(pieces) : null;
+
+  // the order of work: pencil, notes, paint
+  var started = performance.now();
+  var plan = 1400;
+  var notes = 2200;
+  var crews = 3;
+  var perPiece = 360;
+  var order = pieces.slice().sort(function(a, b) {
+    return a.band - b.band || a.x - b.x;
+  });
+  order.forEach(function(piece, i) {
+    piece.noteAt = plan + Math.random() * notes;
+    piece.paintAt = plan + notes + 400 + Math.floor(i / crews) * perPiece * 0.55 + (i % crews) * 60;
+    piece.tilt = (Math.random() - 0.5) * 0.18;
+  });
+  if (slip) {
+    slip.piece.fixAt = slip.piece.paintAt + 1700;
+  }
+
+  var grain = acrylicGrain();
+  wall = { pieces: pieces, left: left, top: top, side: side, focus: null };
+
+  function draw(now) {
+    var t = now - started;
+    render(t);
+    var done = pieces.every(function(piece) {
+      return t > (piece.fixAt || piece.paintAt) + perPiece;
+    });
+    if (!done || wall.focus) {
+      frame = requestAnimationFrame(draw);
+    } else {
+      frame = null;
+    }
+  }
+
+  wall.wake = function() {
+    if (!frame) {
+      frame = requestAnimationFrame(draw);
+    }
+  };
+
+  frame = requestAnimationFrame(draw);
+
+  // bands of equal width, each broken at its own places; a break never
+  // lines up with one in the band next to it, so no corner is ambiguous
+  function breakBands() {
+    var bands = 9 + Math.floor(Math.random() * 6);
+    var bandHeight = side / bands;
+    var minimum = side * 0.07;
+    var all = [];
+    var previousBreaks = [];
+    for (var b = 0; b < bands; b++) {
+      var breaks = [];
+      var count = 2 + Math.floor(Math.random() * 5);
+      for (var tries = 0; breaks.length < count && tries < 200; tries++) {
+        var at = minimum + Math.random() * (side - 2 * minimum);
+        var clear = breaks.concat([0, side]).every(function(other) {
+          return Math.abs(other - at) > minimum;
+        }) && previousBreaks.every(function(other) {
+          return Math.abs(other - at) > side * 0.025;
+        });
+        if (clear) {
+          breaks.push(at);
+        }
+      }
+      breaks.sort(function(a, c) { return a - c; });
+      var edges = [0].concat(breaks, [side]);
+      for (var i = 0; i < edges.length - 1; i++) {
+        all.push({
+          band: b,
+          x: edges[i],
+          y: b * bandHeight,
+          w: edges[i + 1] - edges[i],
+          h: bandHeight,
+          neighbours: []
+        });
+      }
+      previousBreaks = breaks;
+    }
+    // ... no band of a given colour may touch another of the same colour:
+    // touching along the band, above, below, or only at a corner
+    all.forEach(function(a) {
+      all.forEach(function(c) {
+        if (a === c) {
+          return;
+        }
+        var sameBand = a.band === c.band && (Math.abs(a.x + a.w - c.x) < 0.5 || Math.abs(c.x + c.w - a.x) < 0.5);
+        var nextBand = Math.abs(a.band - c.band) === 1 && a.x <= c.x + c.w + 0.5 && c.x <= a.x + a.w + 0.5;
+        if (sameBand || nextBand) {
+          a.neighbours.push(c);
+        }
+      });
+    });
+    return all;
+  }
+
+  // colour the map: the most constrained piece first, any colour that is
+  // allowed, chosen at random so no two walls are alike
+  function colour(all) {
+    var left = all.slice();
+    all.forEach(function(piece) {
+      piece.colour = null;
+    });
+    while (left.length) {
+      left.sort(function(a, b) {
+        return saturation(b) - saturation(a) || b.neighbours.length - a.neighbours.length || Math.random() - 0.5;
+      });
+      var piece = left.shift();
+      var allowed = COLORS.filter(function(c) {
+        return piece.neighbours.every(function(n) { return n.colour !== c; });
+      });
+      if (!allowed.length) {
+        return false;
+      }
+      piece.colour = allowed[Math.floor(Math.random() * allowed.length)];
+    }
+    return true;
+  }
+
+  function saturation(piece) {
+    var seen = [];
+    piece.neighbours.forEach(function(n) {
+      if (n.colour && seen.indexOf(n.colour) === -1) {
+        seen.push(n.colour);
+      }
+    });
+    return seen.length;
+  }
+
+  // the wrong pot: the colour of a neighbour that is already painted
+  function pickSlip(all) {
+    var candidates = all.filter(function(piece) {
+      return piece.band > 1 && piece.neighbours.some(function(n) { return n.band < piece.band; });
+    });
+    if (!candidates.length) {
+      return null;
+    }
+    var piece = candidates[Math.floor(Math.random() * candidates.length)];
+    var above = piece.neighbours.filter(function(n) { return n.band < piece.band; });
+    piece.wrong = above[Math.floor(Math.random() * above.length)].colour;
+    return { piece: piece };
+  }
+
+  function render(t) {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = '#efede8';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.scale(ratio, ratio);
+    ctx.translate(left, top);
+
+    // the pencil plan: the square, the bands, the breaks
+    var pencil = Math.min(1, t / plan);
+    ctx.strokeStyle = 'rgba(70, 68, 72, 0.35)';
+    ctx.lineWidth = 0.6;
+    ctx.strokeRect(0, 0, side * Math.min(1, pencil * 2), side * Math.min(1, pencil * 2));
+    pieces.forEach(function(piece) {
+      if (pencil * 1.4 > piece.band / 12) {
+        ctx.strokeRect(piece.x, piece.y, piece.w, piece.h);
+      }
+    });
+
+    // paint: each piece rolled on from left to right, flat and opaque
+    pieces.forEach(function(piece) {
+      var wrong = piece.wrong && t < piece.fixAt;
+      var start = wrong || !piece.fixAt ? piece.paintAt : piece.fixAt;
+      var amount = Math.max(0, Math.min(1, (t - start) / perPiece));
+      if (piece.fixAt && t >= piece.fixAt) {
+        // the mistake stays visible underneath until the new coat covers it
+        fill(piece, piece.wrong, 1);
+      }
+      if (amount > 0) {
+        fill(piece, wrong ? piece.wrong : piece.colour, amount);
+      }
+    });
+
+    // a slip is noticed: two pieces of the same colour touching
+    pieces.forEach(function(piece) {
+      if (piece.wrong && t > piece.paintAt + perPiece + 500 && t < piece.fixAt) {
+        var pulse = 0.5 + 0.5 * Math.sin(t / 120);
+        ctx.strokeStyle = 'rgba(20, 20, 20, ' + (0.35 + pulse * 0.5) + ')';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 4]);
+        ctx.strokeRect(piece.x + 3, piece.y + 3, piece.w - 6, piece.h - 6);
+        ctx.setLineDash([]);
+      }
+    });
+
+    // the Post-it notes, until the paint reaches them; when a slip is
+    // noticed the note goes back up until the piece is painted over
+    pieces.forEach(function(piece) {
+      var covered = t > piece.paintAt + perPiece * 0.5;
+      var noticed = piece.wrong && t > piece.paintAt + perPiece + 500;
+      var repainted = piece.wrong && t > piece.fixAt + perPiece * 0.5;
+      if (t > piece.noteAt && (!covered || (noticed && !repainted))) {
+        note(piece, piece.colour, Math.min(1, (t - piece.noteAt) / 180));
+      }
+    });
+
+    if (wall.focus) {
+      outline(wall.focus);
+    }
+  }
+
+  function fill(piece, colour, amount) {
+    ctx.fillStyle = colour.fill;
+    ctx.fillRect(piece.x, piece.y, piece.w * amount, piece.h);
+    ctx.save();
+    ctx.globalAlpha = 0.022;
+    ctx.fillStyle = grain;
+    ctx.fillRect(piece.x, piece.y, piece.w * amount, piece.h);
+    ctx.restore();
+  }
+
+  function note(piece, colour, appear) {
+    var size = Math.max(12, Math.min(26, side / 34));
+    ctx.save();
+    ctx.translate(piece.x + piece.w / 2, piece.y + piece.h / 2);
+    ctx.rotate(piece.tilt);
+    ctx.globalAlpha = appear;
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.18)';
+    ctx.shadowBlur = 3;
+    ctx.shadowOffsetY = 1;
+    ctx.fillStyle = colour.note;
+    ctx.fillRect(-size / 2, -size / 2, size, size);
+    ctx.shadowColor = 'transparent';
+    ctx.fillStyle = 'rgba(30, 30, 34, 0.75)';
+    ctx.font = Math.round(size * 0.55) + 'px "Helvetica Neue", Helvetica, Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(colour.key, 0, 1);
+    ctx.restore();
+  }
+
+  function outline(piece) {
+    ctx.save();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+    ctx.strokeRect(piece.x + 1, piece.y + 1, piece.w - 2, piece.h - 2);
+    ctx.setLineDash([4, 3]);
+    ctx.lineWidth = 1.2;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+    piece.neighbours.forEach(function(n) {
+      ctx.strokeRect(n.x + 1.5, n.y + 1.5, n.w - 3, n.h - 3);
+    });
+    ctx.restore();
+  }
+
+  // acrylic from a roller: almost flat, a fine stipple when you look close
+  function acrylicGrain() {
+    var c = document.createElement('canvas');
+    c.width = c.height = 128;
+    var g = c.getContext('2d');
+    var image = g.createImageData(128, 128);
+    for (var i = 0; i < image.data.length; i += 4) {
+      var v = Math.random() < 0.5 ? 0 : 255;
+      image.data[i] = image.data[i + 1] = image.data[i + 2] = v;
+      image.data[i + 3] = Math.random() * 255;
+    }
+    g.putImageData(image, 0, 0);
+    return ctx.createPattern(c, 'repeat');
+  }
+}
+
+function pieceAt(x, y) {
+  if (!wall) {
+    return null;
+  }
+  var px = x - wall.left;
+  var py = y - wall.top;
+  return wall.pieces.filter(function(piece) {
+    return px >= piece.x && px < piece.x + piece.w && py >= piece.y && py < piece.y + piece.h;
+  })[0] || null;
+}
+
+(function() {
+  var canvas = document.getElementsByTagName('canvas')[0];
+  var caption = document.getElementById('touch');
+
+  function show(piece) {
+    wall.focus = piece;
+    caption.textContent = piece ? piece.colour.name + ', touching ' +
+      piece.neighbours.map(function(n) { return n.colour.name; }).join(', ') : '';
+    wall.wake();
+  }
+
+  canvas.addEventListener('pointermove', function(event) {
+    show(pieceAt(event.clientX, event.clientY));
+  });
+
+  canvas.addEventListener('pointerleave', function() {
+    wall.focus = null;
+    caption.textContent = '';
+  });
+
+  canvas.addEventListener('click', function(event) {
+    var piece = pieceAt(event.clientX, event.clientY);
+    if (!piece) {
+      wallDrawing1112();
+      return;
+    }
+    show(piece);
+  });
+
+  canvas.addEventListener('dblclick', function() {
+    wallDrawing1112();
+  });
+})();
+
+var resizing;
+window.onresize = function() {
+  clearTimeout(resizing);
+  resizing = setTimeout(wallDrawing1112, 200);
+};
+
+wallDrawing1112();
+</script>
