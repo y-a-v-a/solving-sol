@@ -1,0 +1,431 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>claude ❤︎ sol lewitt • #260</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--
+  Wall Drawing #260 (1975) - Sol LeWitt
+  On black walls, all two-part combinations of white arcs from corners and
+  sides, and white straight, not straight, and broken lines.
+
+  White crayon on black wall. The Museum of Modern Art, New York.
+
+  Twenty kinds of line:
+    arcs from the four corners,
+    arcs from the four sides,
+    straight, not straight and broken lines, each in four directions.
+  Every pair of them, once: 20 x 19 / 2 = 190 squares.
+
+  The order is LeWitt's own, from his 1974 book "All combinations of arcs
+  from four corners, arcs from four sides, straight lines, not-straight
+  lines and broken lines": 70 combinations with arcs from corners, 54 with
+  arcs from sides, 38 with straight lines, 22 with not straight lines and
+  6 with broken lines. 190 = 19 x 10, so it fits a wall exactly.
+
+  Point at a square to read it. Click to look closer.
+
+  claude • 2026
+-->
+<style>
+html,body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #121212;
+}
+canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+#closer {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.35s ease;
+}
+#closer.open {
+  opacity: 1;
+  pointer-events: auto;
+  cursor: zoom-out;
+}
+#caption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 0 4vw 2.2vh;
+  color: rgba(238, 236, 230, 0.62);
+  font: 11px/1.4 "Helvetica Neue", Helvetica, Arial, sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: lowercase;
+  pointer-events: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+</style>
+<canvas id="wall"></canvas>
+<canvas id="closer"></canvas>
+<div id="caption"></div>
+<script>
+// the twenty kinds of line, in the order of the 1974 book
+var kinds = [];
+['upper left', 'upper right', 'lower right', 'lower left'].forEach(function(corner, i) {
+  kinds.push({ family: 'corner', index: i, name: 'arcs from the ' + corner + ' corner' });
+});
+['top', 'right', 'bottom', 'left'].forEach(function(side, i) {
+  kinds.push({ family: 'side', index: i, name: 'arcs from the ' + side + ' side' });
+});
+['straight', 'not straight', 'broken'].forEach(function(family) {
+  ['vertical', 'horizontal', 'diagonal right', 'diagonal left'].forEach(function(direction, i) {
+    kinds.push({ family: family, index: i, name: family + ' ' + direction + ' lines' });
+  });
+});
+
+// ... all two-part combinations ...
+var combinations = [];
+for (var a = 0; a < kinds.length; a++) {
+  for (var b = a + 1; b < kinds.length; b++) {
+    combinations.push([kinds[a], kinds[b]]);
+  }
+}
+
+var layout;
+var frame;
+
+function wallDrawing260() {
+  'use strict';
+
+  cancelAnimationFrame(frame);
+
+  var canvas = document.getElementById('wall');
+  var ctx = canvas.getContext('2d');
+  var ratio = window.devicePixelRatio || 1;
+  var width = canvas.clientWidth;
+  var height = canvas.clientHeight;
+  canvas.width = width * ratio;
+  canvas.height = height * ratio;
+
+  // 190 = 19 x 10; the wall decides which way round
+  var cols = width >= height ? 19 : 10;
+  var rows = combinations.length / cols;
+  var margin = Math.min(width, height) * 0.06;
+  var size = Math.floor(Math.min((width - 2 * margin) / cols, (height - 2.6 * margin) / rows));
+  var left = Math.round((width - cols * size) / 2);
+  var top = Math.round((height - rows * size) / 2 - margin * 0.15);
+
+  layout = { cols: cols, rows: rows, size: size, left: left, top: top };
+
+  // ... on black walls, ...
+  var chalk = layer();
+  var c = chalk.getContext('2d');
+  var tooth = wallTooth(ratio);
+
+  // each square fills in, in order, like turning the pages of the book
+  var drawn = 0;
+  var started = performance.now();
+  var duration = 5200;
+
+  function draw(now) {
+    var until = Math.min(combinations.length, Math.ceil((now - started) / duration * combinations.length));
+    for (; drawn < until; drawn++) {
+      var col = drawn % cols;
+      var row = Math.floor(drawn / cols);
+      square(c, drawn, left + col * size, top + row * size, size);
+    }
+    present();
+    if (drawn < combinations.length) {
+      frame = requestAnimationFrame(draw);
+    }
+  }
+
+  grid(c);
+  frame = requestAnimationFrame(draw);
+
+  function grid(g) {
+    g.save();
+    g.strokeStyle = 'rgba(236, 234, 228, 0.22)';
+    g.lineWidth = 0.6;
+    g.beginPath();
+    for (var x = 0; x <= cols; x++) {
+      g.moveTo(left + x * size, top);
+      g.lineTo(left + x * size, top + rows * size);
+    }
+    for (var y = 0; y <= rows; y++) {
+      g.moveTo(left, top + y * size);
+      g.lineTo(left + cols * size, top + y * size);
+    }
+    g.stroke();
+    g.restore();
+  }
+
+  function present() {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = '#121212';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // a black wall is never quite black: a little light falls on it
+    var light = ctx.createRadialGradient(
+      canvas.width * 0.5, canvas.height * 0.35, 0,
+      canvas.width * 0.5, canvas.height * 0.5, Math.max(canvas.width, canvas.height) * 0.75
+    );
+    light.addColorStop(0, 'rgba(255, 255, 255, 0.045)');
+    light.addColorStop(1, 'rgba(0, 0, 0, 0.25)');
+    ctx.fillStyle = light;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.drawImage(chalk, 0, 0);
+  }
+
+  function layer() {
+    var l = document.createElement('canvas');
+    l.width = width * ratio;
+    l.height = height * ratio;
+    l.getContext('2d').scale(ratio, ratio);
+    return l;
+  }
+
+  // crayon skips on the tooth of the wall; the mask is applied per square
+  // so the drawing can keep growing while it shows
+  function square(g, n, x, y, s) {
+    var piece = document.createElement('canvas');
+    piece.width = Math.ceil(s * ratio);
+    piece.height = Math.ceil(s * ratio);
+    var p = piece.getContext('2d');
+    p.scale(ratio, ratio);
+    drawCombination(p, n, s, Math.max(0.65, s / 105));
+    p.setTransform(1, 0, 0, 1, 0, 0);
+    p.globalCompositeOperation = 'destination-in';
+    p.fillStyle = p.createPattern(tooth, 'repeat');
+    p.fillRect(0, 0, piece.width, piece.height);
+    g.drawImage(piece, x, y, s, s);
+  }
+}
+
+// one square: two kinds of line superimposed, always drawn from the same
+// seed so a closer look shows the very same drawing. The number of lines
+// does not depend on the size of the square; only the crayon does.
+function drawCombination(ctx, n, size, weight) {
+  'use strict';
+
+  var spacing = size / 10;
+  var pair = combinations[n];
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, size, size);
+  ctx.clip();
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = 'rgba(244, 242, 236, 0.9)';
+  ctx.lineWidth = weight;
+
+  pair.forEach(function(kind, part) {
+    var random = seeded(n * 2 + part + 1);
+    if (kind.family === 'corner') {
+      var corners = [[0, 0], [size, 0], [size, size], [0, size]];
+      arcs(corners[kind.index], size * Math.SQRT2);
+    } else if (kind.family === 'side') {
+      var sides = [[size / 2, 0], [size, size / 2], [size / 2, size], [0, size / 2]];
+      arcs(sides[kind.index], size * Math.sqrt(1.25));
+    } else {
+      lines(kind, random);
+    }
+  });
+
+  ctx.restore();
+
+  // ... white arcs from corners and sides ...
+  function arcs(center, reach) {
+    for (var r = spacing; r <= reach + spacing; r += spacing) {
+      ctx.beginPath();
+      ctx.arc(center[0], center[1], r, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+
+  // ... and white straight, not straight, and broken lines.
+  function lines(kind, random) {
+    // vertical, horizontal, diagonal right, diagonal left
+    var angle = [Math.PI / 2, 0, -Math.PI / 4, Math.PI / 4][kind.index];
+    var ux = Math.cos(angle);
+    var uy = Math.sin(angle);
+    var nx = -uy;
+    var ny = ux;
+    var half = size * Math.SQRT2 / 2;
+    var mid = size / 2;
+
+    for (var offset = -half + (half % spacing); offset <= half; offset += spacing) {
+      var cx = mid + nx * offset;
+      var cy = mid + ny * offset;
+
+      if (kind.family === 'straight') {
+        ctx.beginPath();
+        ctx.moveTo(cx - ux * half, cy - uy * half);
+        ctx.lineTo(cx + ux * half, cy + uy * half);
+        ctx.stroke();
+      }
+
+      if (kind.family === 'not straight') {
+        // waves never more than a third of the gap, so neighbours never touch
+        var amplitude = spacing * 0.3;
+        var phaseA = random() * Math.PI * 2;
+        var phaseB = random() * Math.PI * 2;
+        var waves = 1.4 + random() * 0.8;
+        ctx.beginPath();
+        for (var t = -half; t <= half; t += size / 40) {
+          var u = t / size;
+          var wave = amplitude * (0.7 * Math.sin(u * Math.PI * 2 * waves + phaseA) + 0.3 * Math.sin(u * Math.PI * 5.3 + phaseB));
+          var px = cx + ux * t + nx * wave;
+          var py = cy + uy * t + ny * wave;
+          if (t === -half) {
+            ctx.moveTo(px, py);
+          } else {
+            ctx.lineTo(px, py);
+          }
+        }
+        ctx.stroke();
+      }
+
+      if (kind.family === 'broken') {
+        var unit = spacing * 1.7;
+        var at = -half - random() * unit;
+        ctx.beginPath();
+        while (at < half) {
+          var dash = unit * (0.6 + random());
+          ctx.moveTo(cx + ux * at, cy + uy * at);
+          ctx.lineTo(cx + ux * (at + dash), cy + uy * (at + dash));
+          at += dash + unit * (0.35 + random() * 0.45);
+        }
+        ctx.stroke();
+      }
+    }
+  }
+}
+
+function seeded(seed) {
+  return function() {
+    seed |= 0;
+    seed = seed + 0x6D2B79F5 | 0;
+    var t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+function wallTooth(ratio) {
+  var c = document.createElement('canvas');
+  c.width = c.height = 256;
+  var t = c.getContext('2d');
+  var image = t.createImageData(256, 256);
+  for (var i = 0; i < image.data.length; i += 4) {
+    image.data[i + 3] = Math.random() < 0.08 ? 40 : 150 + Math.random() * 105;
+  }
+  t.putImageData(image, 0, 0);
+  return c;
+}
+
+function describe(n) {
+  var pair = combinations[n];
+  return (n + 1) + ' / 190  ·  ' + pair[0].name + '  +  ' + pair[1].name;
+}
+
+function squareAt(x, y) {
+  if (!layout) {
+    return -1;
+  }
+  var col = Math.floor((x - layout.left) / layout.size);
+  var row = Math.floor((y - layout.top) / layout.size);
+  if (col < 0 || row < 0 || col >= layout.cols || row >= layout.rows) {
+    return -1;
+  }
+  return row * layout.cols + col;
+}
+
+function lookCloser(n) {
+  'use strict';
+
+  var closer = document.getElementById('closer');
+  var ctx = closer.getContext('2d');
+  var ratio = window.devicePixelRatio || 1;
+  var width = closer.clientWidth;
+  var height = closer.clientHeight;
+  closer.width = width * ratio;
+  closer.height = height * ratio;
+  ctx.scale(ratio, ratio);
+
+  ctx.fillStyle = 'rgba(14, 14, 14, 0.94)';
+  ctx.fillRect(0, 0, width, height);
+
+  // the same square, the same seed, only bigger
+  var small = layout.size;
+  var size = Math.floor(Math.min(width, height) * 0.72);
+  var x = Math.round((width - size) / 2);
+  var y = Math.round((height - size) / 2 - Math.min(width, height) * 0.03);
+  var piece = document.createElement('canvas');
+  piece.width = piece.height = Math.ceil(size * ratio);
+  var p = piece.getContext('2d');
+  p.scale(ratio * size / small, ratio * size / small);
+  drawCombination(p, n, small, Math.max(1.4, size / 170) * small / size);
+  p.setTransform(1, 0, 0, 1, 0, 0);
+  p.globalCompositeOperation = 'destination-in';
+  p.fillStyle = p.createPattern(wallTooth(ratio), 'repeat');
+  p.fillRect(0, 0, piece.width, piece.height);
+
+  ctx.strokeStyle = 'rgba(236, 234, 228, 0.22)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x, y, size, size);
+  ctx.drawImage(piece, x, y, size, size);
+
+  closer.classList.add('open');
+}
+
+(function() {
+  var caption = document.getElementById('caption');
+  var closer = document.getElementById('closer');
+  var wall = document.getElementById('wall');
+
+  wall.addEventListener('pointermove', function(event) {
+    var n = squareAt(event.clientX, event.clientY);
+    caption.textContent = n > -1 ? describe(n) : '';
+    wall.style.cursor = n > -1 ? 'zoom-in' : 'default';
+  });
+
+  wall.addEventListener('pointerleave', function() {
+    if (!closer.classList.contains('open')) {
+      caption.textContent = '';
+    }
+  });
+
+  wall.addEventListener('click', function(event) {
+    var n = squareAt(event.clientX, event.clientY);
+    if (n > -1) {
+      caption.textContent = describe(n);
+      lookCloser(n);
+    }
+  });
+
+  closer.addEventListener('click', function() {
+    closer.classList.remove('open');
+    caption.textContent = '';
+  });
+
+  window.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+      closer.classList.remove('open');
+    }
+  });
+})();
+
+var resizing;
+window.onresize = function() {
+  clearTimeout(resizing);
+  resizing = setTimeout(wallDrawing260, 200);
+};
+
+wallDrawing260();
+</script>

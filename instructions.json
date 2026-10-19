@@ -87,6 +87,10 @@
     "title" : "Wall Drawing #232 (1975)",
     "description" : "A square, each side of which is equal to a tenth of the total length of three lines, the first of which is drawn from a point halfway between the center of the wall and a point halfway between the center of the wall and the upper left corner and the midpoint of the left side to a point halfway between the center of the wall and a point halfway between the center of the wall and the midpoint of the bottom side; the second line is drawn from a point halfway between the start of the first line and a point halfway between the center of the wall and the upper right corner and the midpoint of the top side to the start of the first line; the third line is drawn from a point halfway between a point equidistant from the end of the first line, the start of the second line and a point halfway between a point halfway between the center of the wall and the midpoint of the right side and a point halfway between the center of the wall and the upper right corner and the midpoint of the top side to the point where the first line starts and the second line ends; the right side is located on the axis of, and equidistant from two points, the first of which is located at a point halfway between a point halfway between the center of the wall and the midpoint of the right side and the lower right corner to a point halfway between a point halfway between the midpoint of the top side and the upper right corner and the start of the third line."
   },
+  "260" : {
+    "title" : "Wall Drawing #260 (1975)",
+    "description" : "On black walls, all two-part combinations of white arcs from corners and sides, and white straight, not straight, and broken lines."
+  },
   "273" : {
     "title" : "Wall Drawing #273 (1975)",
     "description" : "Lines to points on a grid. A six-inch (15 cm) grid covering the wall. Lines from the corners, sides, and center of the walls to random points on the grid. Composite (seventh wall): red lines from the midpoints of four sides, blue lines from four corners, yellow lines from the center."
