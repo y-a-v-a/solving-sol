@@ -19,6 +19,10 @@
     "title" : "Wall Drawing #46 (1970)",
     "description" : "Vertical lines, not straight, not touching, covering the wall evenly."
   },
+  "047" : {
+    "title" : "Wall Drawing #47 (1970)",
+    "description" : "A wall divided into fifteen equal parts, each with a different line direction, and all combinations."
+  },
   "056" : {
     "title" : "Wall Drawing #56 (1970)",
     "description" : "A square is divided horizontally and vertically into four equal parts, each with lines in four directions superimposed progressively."
@@ -71,6 +75,10 @@
     "title" : "Wall Drawing #146 (1972)",
     "description" : "All two-part combinations of blue arcs from corners and sides, and blue straight, not straight, and broken lines."
   },
+  "150" : {
+    "title" : "Wall Drawing #150 (1972)",
+    "description" : "Ten thousand one-inch (2.5 cm) lines evenly spaced on each of six walls."
+  },
   "164" : {
     "title" : "Wall Drawing #164 (1973)",
     "description" : "A black outlined square with a red horizontal line centered on the axis between the midpoint of the left side and the midpoint of the right side and a red diagonal line centered on the axis between the lower left and upper right corners."
@@ -78,6 +86,10 @@
   "232" : {
     "title" : "Wall Drawing #232 (1975)",
     "description" : "A square, each side of which is equal to a tenth of the total length of three lines, the first of which is drawn from a point halfway between the center of the wall and a point halfway between the center of the wall and the upper left corner and the midpoint of the left side to a point halfway between the center of the wall and a point halfway between the center of the wall and the midpoint of the bottom side; the second line is drawn from a point halfway between the start of the first line and a point halfway between the center of the wall and the upper right corner and the midpoint of the top side to the start of the first line; the third line is drawn from a point halfway between a point equidistant from the end of the first line, the start of the second line and a point halfway between a point halfway between the center of the wall and the midpoint of the right side and a point halfway between the center of the wall and the upper right corner and the midpoint of the top side to the point where the first line starts and the second line ends; the right side is located on the axis of, and equidistant from two points, the first of which is located at a point halfway between a point halfway between the center of the wall and the midpoint of the right side and the lower right corner to a point halfway between a point halfway between the midpoint of the top side and the upper right corner and the start of the third line."
+  },
+  "260" : {
+    "title" : "Wall Drawing #260 (1975)",
+    "description" : "On black walls, all two-part combinations of white arcs from corners and sides, and white straight, not straight, and broken lines."
   },
   "273" : {
     "title" : "Wall Drawing #273 (1975)",
@@ -91,6 +103,10 @@
     "title" : "Wall Drawing #295 (1976)",
     "description": "Six white geometric figures (outlines) superimposed on a black wall."
   },
+  "305" : {
+    "title" : "Wall Drawing #305 (1977)",
+    "description" : "The location of one hundred random specific points."
+  },
   "328" : {
     "title" : "Wall Drawing #328 (1980)",
     "description" : "On a black wall, a white circle within which are white vertical parallel lines, and a white parallelogram within which are white horizontal parallel lines. The vertical lines within the circle do not enter the parallelogram, and the horizontal lines within the parallelogram do not enter the circle."
@@ -102,6 +118,10 @@
   "340" : {
     "title" : "Wall Drawing #340 (1980)",
     "description" : "Six-part drawing. The wall is divided horizontally and vertically into six equal parts. 1st part: On red, blue horizontal parallel lines, and in the center, a circle within which are yellow vertical parallel lines; 2nd part: On yellow, red horizontal parallel lines, and in the center, a square within which are blue vertical parallel lines; 3rd part: On blue, yellow horizontal parallel lines, and in the center, a triangle within which are red vertical parallel lines; 4th part: On red, yellow horizontal parallel lines, and in the center, a rectangle within which are blue vertical parallel lines; 5th part: On yellow, blue horizontal parallel lines, and in the center, a trapezoid within which are red vertical parallel lines; 6th part: On blue, red horizontal parallel lines, and in the center, a parallelogram within which are yellow vertical parallel lines. The horizontal lines do not enter the figures."
+  },
+  "358" : {
+    "title" : "Wall Drawing #358 (1981)",
+    "description" : "A 12\" (30 cm) grid covering the wall. Within each 12\" (30 cm) square, one arc from the corner. (The direction of the arcs and their placement are determined by the draftsman.)"
   },
   "366" : {
     "title" : "Wall Drawing #366 (1982)",
@@ -131,6 +151,10 @@
     "title" : "Wall Drawing #630 (1990)",
     "description": "A wall is divided horizontally into two equal parts. Top: alternating horizontal black and white 8-inch (20 cm) bands. Bottom: alternating vertical black and white 8-inch (20 cm) bands."
   },
+  "681C" : {
+    "title" : "Wall Drawing #681 C (1993)",
+    "description" : "A wall divided vertically into four equal squares separated and bordered by black bands. Within each square, bands in one of four directions, each with color ink washes superimposed."
+  },
   "797" : {
     "title" : "Wall Drawing #797 (1995)",
     "description": "The first drafter has a black marker and makes an irregular horizontal line near the top of the wall. Then the second drafter tries to copy it (without touching it) using a red marker. The third drafter does the same, using a yellow marker. The fourth drafter does the same using a blue marker. Then the second drafter followed by the third and fourth copies the last line drawn until the bottom of the wall is reached."
@@ -146,6 +170,10 @@
   "959" : {
     "title" : "Wall Drawing #959 (2001)",
     "description": "Uneven bands from the upper right corner."
+  },
+  "1112" : {
+    "title" : "Wall Drawing #1112 (2003)",
+    "description" : "Square with broken bands of color."
   },
   "1180" : {
     "title" : "Wall Drawing #1180 (2005)",

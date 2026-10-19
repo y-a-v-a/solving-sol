@@ -1,0 +1,391 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>claude ❤︎ sol lewitt • #358</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--
+  Wall Drawing #358 (1981) - Sol LeWitt
+  A 12" (30 cm) grid covering the wall. Within each 12" (30 cm) square,
+  one arc from the corner. (The direction of the arcs and their placement
+  are determined by the draftsman.)
+
+  White crayon and black pencil grid on black painted wall.
+  Museum of Contemporary Art Chicago.
+
+  The sentence in brackets is the whole work. LeWitt gives away the
+  composition and keeps only the rule. So every time this wall is drawn,
+  someone else draws it, and you can tell who it was by the arcs:
+
+    one makes circles: four quarters meeting around a crossing of the grid,
+    one lets a slow current run through the wall,
+    one turns every arc toward the middle until the wall ripples,
+    one leaves it to chance,
+    one is patient and systematic,
+    one follows the diagonals and makes waves.
+
+  Click a square to turn its arc and scroll to move it: you are the
+  drafter now. Press the space bar (or double-click) for another drafter.
+
+  The wall is ten feet high, so the grid has ten rows.
+
+  claude • 2026
+-->
+<style>
+html,body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #151515;
+}
+canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: pointer;
+}
+#drafter {
+  position: absolute;
+  left: 16px;
+  bottom: 12px;
+  color: rgba(235, 233, 226, 0.55);
+  font: 11px/1.4 "Helvetica Neue", Helvetica, Arial, sans-serif;
+  letter-spacing: 0.08em;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 1.2s ease;
+}
+#drafter.shown {
+  opacity: 1;
+}
+</style>
+<canvas></canvas>
+<div id="drafter"></div>
+<script>
+// corners: 0 upper left, 1 upper right, 2 lower right, 3 lower left
+var CORNERS = [[0, 0], [1, 0], [1, 1], [0, 1]];
+
+// the drafters; each decides direction (the corner) and placement (the radius)
+var drafters = [
+  {
+    name: 'a drafter who makes circles',
+    choose: function(col, row, wall) {
+      // every square touches exactly one crossing whose column and row are
+      // both even; turn to it, and four quarters close into a circle
+      var corner = CORNERS.findIndex(function(c) {
+        return (col + c[0]) % 2 === 0 && (row + c[1]) % 2 === 0;
+      });
+      var nodeX = col + CORNERS[corner][0];
+      var nodeY = row + CORNERS[corner][1];
+      return { corner: corner, radius: [0.34, 0.5, 0.67, 0.84, 1][Math.floor(wall.hash(nodeX, nodeY) * 5)] };
+    }
+  },
+  {
+    name: 'a drafter who lets a slow current run through the wall',
+    choose: function(col, row, wall) {
+      var direction = wall.noise(col * 0.16, row * 0.16, 0);
+      var placement = wall.noise(col * 0.21, row * 0.21, 7);
+      return { corner: Math.floor(direction * 4 * 1.999) % 4, radius: 0.3 + 0.7 * placement };
+    }
+  },
+  {
+    name: 'a drafter who turns every arc toward the middle',
+    choose: function(col, row, wall) {
+      var cx = wall.cols / 2;
+      var cy = wall.rows / 2;
+      // the corner of the square that lies nearest to the middle of the wall
+      var quadrant = (col + 0.5 < cx ? 0 : 1) + (row + 0.5 < cy ? 0 : 2);
+      var corner = [2, 3, 1, 0][quadrant];
+      var ring = Math.floor(Math.hypot(col + 0.5 - cx, row + 0.5 - cy) * 1.25);
+      return { corner: corner, radius: [1, 0.66, 0.33][ring % 3] };
+    }
+  },
+  {
+    name: 'a drafter who leaves it to chance',
+    choose: function() {
+      return { corner: Math.floor(Math.random() * 4), radius: 0.2 + Math.random() * 0.8 };
+    }
+  },
+  {
+    name: 'a patient, systematic drafter',
+    choose: function(col, row, wall) {
+      // each row turns a quarter further; the arcs grow from left to right
+      return { corner: row % 4, radius: (col + 1) / wall.cols };
+    }
+  },
+  {
+    name: 'a drafter who follows the diagonals and makes waves',
+    choose: function(col, row, wall) {
+      var wide = wall.hash(col - row, 3) < 0.5;
+      return { corner: (col + row) % 2 ? 3 : 1, radius: wide ? 1 : 0.5 };
+    }
+  }
+];
+
+var state;
+
+function wallDrawing358(keepDrafter) {
+  'use strict';
+
+  if (state) {
+    cancelAnimationFrame(state.frame);
+  }
+
+  var canvas = document.getElementsByTagName('canvas')[0];
+  var ctx = canvas.getContext('2d');
+  var ratio = window.devicePixelRatio || 1;
+  var width = canvas.clientWidth;
+  var height = canvas.clientHeight;
+  canvas.width = width * ratio;
+  canvas.height = height * ratio;
+
+  // A 12" (30 cm) grid covering the wall. A ten foot wall, ten rows.
+  var rows = 10;
+  var size = height / rows;
+  var cols = Math.ceil(width / size);
+  var offsetX = (width - cols * size) / 2;
+
+  var seed = Math.floor(Math.random() * 1e9);
+  var previous = state && state.drafter;
+  var drafter = keepDrafter && previous ? previous : pickDrafter(previous);
+  var wall = { cols: cols, rows: rows, hash: hash, noise: noise };
+
+  var squares = [];
+  for (var row = 0; row < rows; row++) {
+    for (var col = 0; col < cols; col++) {
+      var choice = drafter.choose(col, row, wall);
+      squares.push({ col: col, row: row, corner: choice.corner, radius: choice.radius, drawn: 0, turn: 0 });
+    }
+  }
+
+  // the drafter works along the rows, back and forth, like mowing a lawn
+  var order = squares.slice().sort(function(a, b) {
+    if (a.row !== b.row) {
+      return a.row - b.row;
+    }
+    return a.row % 2 ? b.col - a.col : a.col - b.col;
+  });
+
+  var crayon = document.createElement('canvas');
+  crayon.width = canvas.width;
+  crayon.height = canvas.height;
+  var c = crayon.getContext('2d');
+  var tooth = wallTooth();
+
+  var started = performance.now();
+  var perArc = Math.min(70, 9000 / squares.length);
+
+  state = {
+    drafter: drafter,
+    squares: squares,
+    size: size,
+    offsetX: offsetX,
+    cols: cols,
+    rows: rows,
+    frame: requestAnimationFrame(draw)
+  };
+
+  announce(drafter.name);
+
+  function draw(now) {
+    var busy = false;
+    order.forEach(function(square, i) {
+      var t = (now - started - i * perArc) / (perArc * 3);
+      square.drawn = Math.max(0, Math.min(1, t));
+      if (square.drawn < 1) {
+        busy = true;
+      }
+      // a turned or moved arc settles into its new place
+      if (square.turn > 0) {
+        square.turn = Math.max(0, square.turn - 0.06);
+        busy = true;
+      }
+    });
+    render();
+    state.frame = busy ? requestAnimationFrame(draw) : null;
+  }
+
+  state.wake = function() {
+    if (!state.frame) {
+      started = -Infinity;
+      state.frame = requestAnimationFrame(draw);
+    }
+  };
+
+  function render() {
+    // ... on black painted wall ...
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = '#151515';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    var light = ctx.createRadialGradient(canvas.width * 0.45, canvas.height * 0.3, 0, canvas.width * 0.5, canvas.height * 0.5, Math.max(canvas.width, canvas.height) * 0.8);
+    light.addColorStop(0, 'rgba(255, 255, 255, 0.035)');
+    light.addColorStop(1, 'rgba(0, 0, 0, 0.3)');
+    ctx.fillStyle = light;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.scale(ratio, ratio);
+
+    // black pencil on black paint: you see the grid only where the
+    // graphite catches the light
+    ctx.strokeStyle = 'rgba(150, 150, 158, 0.16)';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    for (var x = 0; x <= cols; x++) {
+      ctx.moveTo(offsetX + x * size, 0);
+      ctx.lineTo(offsetX + x * size, height);
+    }
+    for (var y = 0; y <= rows; y++) {
+      ctx.moveTo(0, y * size);
+      ctx.lineTo(width, y * size);
+    }
+    ctx.stroke();
+
+    // ... one arc from the corner. White crayon.
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.clearRect(0, 0, crayon.width, crayon.height);
+    c.scale(ratio, ratio);
+    c.strokeStyle = 'rgba(244, 242, 235, 0.92)';
+    c.lineWidth = Math.max(1.4, size / 34);
+    c.lineCap = 'round';
+    squares.forEach(function(square) {
+      if (!square.drawn) {
+        return;
+      }
+      var left = offsetX + square.col * size;
+      var top = square.row * size;
+      var corner = CORNERS[square.corner];
+      var cx = left + corner[0] * size;
+      var cy = top + corner[1] * size;
+      // a quarter circle, from one side of the square to the other
+      var start = [0, Math.PI / 2, Math.PI, Math.PI * 1.5][square.corner];
+      var sweep = Math.PI / 2 * square.drawn;
+      c.save();
+      c.beginPath();
+      c.rect(left, top, size, size);
+      c.clip();
+      c.globalAlpha = 1 - square.turn * 0.8;
+      c.beginPath();
+      c.arc(cx, cy, square.radius * size, start, start + sweep);
+      c.stroke();
+      c.restore();
+    });
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.globalCompositeOperation = 'destination-in';
+    c.fillStyle = c.createPattern(tooth, 'repeat');
+    c.fillRect(0, 0, crayon.width, crayon.height);
+    c.globalCompositeOperation = 'source-over';
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(crayon, 0, 0);
+  }
+
+  function hash(x, y) {
+    var h = (x * 374761393 + y * 668265263 + seed) | 0;
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+  }
+
+  // smooth value noise, so neighbouring decisions resemble each other
+  function noise(x, y, layer) {
+    var x0 = Math.floor(x);
+    var y0 = Math.floor(y);
+    var fx = x - x0;
+    var fy = y - y0;
+    var sx = fx * fx * (3 - 2 * fx);
+    var sy = fy * fy * (3 - 2 * fy);
+    var a = hash(x0 + layer * 101, y0);
+    var b = hash(x0 + 1 + layer * 101, y0);
+    var d = hash(x0 + layer * 101, y0 + 1);
+    var e = hash(x0 + 1 + layer * 101, y0 + 1);
+    return a + (b - a) * sx + (d - a) * sy + (a - b - d + e) * sx * sy;
+  }
+
+  function wallTooth() {
+    var t = document.createElement('canvas');
+    t.width = t.height = 256;
+    var g = t.getContext('2d');
+    var image = g.createImageData(256, 256);
+    for (var i = 0; i < image.data.length; i += 4) {
+      image.data[i + 3] = Math.random() < 0.07 ? 50 : 170 + Math.random() * 85;
+    }
+    g.putImageData(image, 0, 0);
+    return t;
+  }
+}
+
+function pickDrafter(previous) {
+  var choice;
+  do {
+    choice = drafters[Math.floor(Math.random() * drafters.length)];
+  } while (choice === previous && drafters.length > 1);
+  return choice;
+}
+
+var announcing;
+function announce(name) {
+  var label = document.getElementById('drafter');
+  label.textContent = 'drawn by ' + name;
+  label.classList.add('shown');
+  clearTimeout(announcing);
+  announcing = setTimeout(function() {
+    label.classList.remove('shown');
+  }, 5000);
+}
+
+function squareAt(x, y) {
+  var col = Math.floor((x - state.offsetX) / state.size);
+  var row = Math.floor(y / state.size);
+  if (col < 0 || row < 0 || col >= state.cols || row >= state.rows) {
+    return null;
+  }
+  return state.squares[row * state.cols + col];
+}
+
+// you are the drafter now
+(function() {
+  var canvas = document.getElementsByTagName('canvas')[0];
+
+  canvas.addEventListener('click', function(event) {
+    var square = squareAt(event.clientX, event.clientY);
+    if (square) {
+      square.corner = (square.corner + 1) % 4;
+      square.drawn = 1;
+      square.turn = 1;
+      state.wake();
+      announce('you');
+    }
+  });
+
+  canvas.addEventListener('wheel', function(event) {
+    var square = squareAt(event.clientX, event.clientY);
+    if (square) {
+      event.preventDefault();
+      square.radius = Math.max(0.1, Math.min(1, square.radius - event.deltaY * 0.0015));
+      square.drawn = 1;
+      state.wake();
+      announce('you');
+    }
+  }, { passive: false });
+
+  canvas.addEventListener('dblclick', function(event) {
+    event.preventDefault();
+    wallDrawing358();
+  });
+
+  window.addEventListener('keydown', function(event) {
+    if (event.key === ' ') {
+      event.preventDefault();
+      wallDrawing358();
+    }
+  });
+})();
+
+var resizing;
+window.onresize = function() {
+  clearTimeout(resizing);
+  resizing = setTimeout(function() {
+    wallDrawing358(true);
+  }, 200);
+};
+
+wallDrawing358();
+</script>

@@ -81,6 +81,13 @@
         "entry" : "index.html"
       }
     ],
+  "047" :
+    [
+      {
+        "author" : "claude",
+        "entry" : "index.html"
+      }
+    ],
   "050A" :
     [
       {
@@ -207,10 +214,24 @@
         "entry" : "index.html"
       }
   ],
+  "150" :
+    [
+      {
+        "author" : "claude",
+        "entry" : "index.html"
+      }
+    ],
   "164" :
     [
       {
         "author" : "pavellishin",
+        "entry" : "index.html"
+      }
+    ],
+  "260" :
+    [
+      {
+        "author" : "claude",
         "entry" : "index.html"
       }
     ],
@@ -247,6 +268,13 @@
         "entry" : "index.html"
       }
     ],
+  "305" :
+    [
+      {
+        "author" : "claude",
+        "entry" : "index.html"
+      }
+    ],
   "328" :
     [
       {
@@ -261,6 +289,13 @@
       "entry" : "index.html"
     }
   ],
+  "358" :
+    [
+      {
+        "author" : "claude",
+        "entry" : "index.html"
+      }
+    ],
   "391" :
     [
       {
@@ -304,6 +339,13 @@
         "entry" : "index.html"
       }
     ],
+  "681C" :
+    [
+      {
+        "author" : "claude",
+        "entry" : "index.html"
+      }
+    ],
   "766" : [
     {
       "author" : "karanmhatre1",
@@ -328,6 +370,13 @@
     [
       {
         "author" : "cagrimmett",
+        "entry" : "index.html"
+      }
+    ],
+  "1112" :
+    [
+      {
+        "author" : "claude",
         "entry" : "index.html"
       }
     ],

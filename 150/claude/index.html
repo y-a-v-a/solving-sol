@@ -1,0 +1,335 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>claude ❤︎ sol lewitt • #150</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--
+  Wall Drawing #150 (1972) - Sol LeWitt
+  Ten thousand one-inch (2.5 cm) lines evenly spaced on each of six walls.
+
+  Black pencil.
+
+  Six walls make a room you stand in, so here it is: a six-sided gallery,
+  ten feet high, every wall sixteen feet wide. At that scale an inch is a
+  real unit again, and each wall holds exactly ten thousand of them.
+  Sixty thousand lines in all.
+
+  From the middle of the room the walls are a grey haze. Walk up to one
+  and the haze turns back into lines.
+
+  Six walls also means six drafters. They all follow the same sentence,
+  but no two hands are alike: one presses harder, one is a little shaky,
+  one is generous with the inch. That is not a mistake in the drawing;
+  it is the drawing.
+
+  Drag to look around. Scroll, or use the arrow keys, to walk.
+
+  claude • 2026
+-->
+<style>
+html,body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #1d1c1a;
+}
+#gallery {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+#gallery.dragging {
+  cursor: grabbing;
+}
+#room,
+#room > * {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform-style: preserve-3d;
+}
+.wall {
+  width: 1600px;
+  height: 1000px;
+  margin: -480px 0 0 -800px;
+}
+.corner {
+  width: 120px;
+  height: 1000px;
+  margin: -480px 0 0 -60px;
+  background: #c9c5bd;
+}
+.wall canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+</style>
+<div id="gallery">
+  <div id="room"></div>
+</div>
+<script>
+var camera = { yaw: 0, pitch: 0, x: 0, z: 0, spin: 0, idle: 0 };
+
+function wallDrawing150() {
+  'use strict';
+
+  // a room ten feet high, six walls of sixteen feet: inches as the unit
+  var inch = 1000 / 120;
+  var wallWidth = 16 * 12;
+  var wallHeight = 10 * 12;
+  var apothem = 800 / Math.tan(Math.PI / 6);
+
+  var room = document.getElementById('room');
+
+  // six drafters; the same sentence, six different hands
+  var drafters = [
+    { pressure: 0.62, wobble: 0.02, inch: 1.00, width: 0.9 },
+    { pressure: 0.78, wobble: 0.04, inch: 0.97, width: 1.1 },
+    { pressure: 0.50, wobble: 0.03, inch: 1.06, width: 0.8 },
+    { pressure: 0.70, wobble: 0.10, inch: 1.00, width: 1.0 },
+    { pressure: 0.56, wobble: 0.01, inch: 1.00, width: 0.75 },
+    { pressure: 0.66, wobble: 0.05, inch: 1.12, width: 1.0 }
+  ];
+
+  var tooth = plasterTooth();
+
+  // just outside every corner a plain patch of wall, so the corners close
+  // without a seam of light where two planes meet
+  for (var j = 0; j < 6; j++) {
+    var corner = document.createElement('div');
+    corner.className = 'corner';
+    corner.style.transform = 'rotateY(' + (j * 60 + 30) + 'deg) translateZ(' + (-1604) + 'px)';
+    room.appendChild(corner);
+  }
+
+  // ... on each of six walls.
+  for (var i = 0; i < 6; i++) {
+    var wall = document.createElement('div');
+    wall.className = 'wall';
+    wall.style.transform = 'rotateY(' + (i * 60) + 'deg) translateZ(' + (-apothem) + 'px)';
+    // the light comes in from one side of the room
+    var shade = 0.12 + 0.12 * Math.cos((i * 60 - 200) * Math.PI / 180);
+    wall.appendChild(drawWall(drafters[i], shade));
+    room.appendChild(wall);
+  }
+
+  function drawWall(drafter, shade) {
+    var canvas = document.createElement('canvas');
+    // sharp enough to walk up to; a little lighter on small screens
+    var scale = Math.max(screen.width, screen.height) < 900 ? 1 : 1.5;
+    canvas.width = 1600 * scale;
+    canvas.height = 1000 * scale;
+    var ctx = canvas.getContext('2d');
+    ctx.scale(scale * inch, scale * inch);
+
+    // Ten thousand ... lines evenly spaced ...
+    // The rows share the ten thousand as fairly as possible, and within a
+    // row the lines keep an equal distance; a little jitter, because the
+    // drafter measures by eye once the first rows are done.
+    var count = 10000;
+    var rows = Math.round(Math.sqrt(count * wallHeight / wallWidth));
+    var rowHeight = wallHeight / rows;
+    var placed = 0;
+
+    ctx.lineCap = 'round';
+    for (var row = 0; row < rows; row++) {
+      var inRow = Math.round((count - placed) / (rows - row));
+      var step = wallWidth / inRow;
+      var shift = Math.random() * step;
+      for (var n = 0; n < inRow; n++) {
+        var x = (n * step + shift + (Math.random() - 0.5) * step * 0.35) % wallWidth;
+        var y = (row + 0.5) * rowHeight + (Math.random() - 0.5) * rowHeight * 0.35;
+        line(ctx, x, y, drafter);
+      }
+      placed += inRow;
+    }
+
+    // graphite only catches on the tooth of the plaster
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalCompositeOperation = 'destination-in';
+    ctx.fillStyle = ctx.createPattern(tooth, 'repeat');
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.globalCompositeOperation = 'destination-over';
+    ctx.fillStyle = '#ece9e2';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // daylight from above, the floor bouncing a little back, and corners
+    // where the light does not quite reach
+    ctx.globalCompositeOperation = 'source-over';
+    light(ctx, canvas.width, 0, [[0, 'rgba(40, 36, 30, 0.16)'], [0.09, 'rgba(40, 36, 30, 0)'], [0.91, 'rgba(40, 36, 30, 0)'], [1, 'rgba(40, 36, 30, 0.16)']]);
+    light(ctx, 0, canvas.height, [[0, 'rgba(255, 255, 255, 0.10)'], [0.35, 'rgba(255, 255, 255, 0)'], [0.35, 'rgba(40, 36, 30, 0)'], [1, 'rgba(40, 36, 30, 0.10)']]);
+    ctx.fillStyle = 'rgba(30, 28, 25, ' + shade.toFixed(3) + ')';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    return canvas;
+  }
+
+  function light(ctx, x, y, stops) {
+    var gradient = ctx.createLinearGradient(0, 0, x, y);
+    stops.forEach(function(stop) {
+      gradient.addColorStop(stop[0], stop[1]);
+    });
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+  }
+
+  // ... one-inch (2.5 cm) lines ...
+  function line(ctx, x, y, drafter) {
+    var angle = Math.random() * Math.PI;
+    var length = drafter.inch * (1 + (Math.random() - 0.5) * drafter.wobble * 2);
+    var dx = Math.cos(angle) * length / 2;
+    var dy = Math.sin(angle) * length / 2;
+    // a shaky hand bends the line ever so slightly
+    var bend = (Math.random() - 0.5) * drafter.wobble;
+    var alpha = drafter.pressure * (0.75 + Math.random() * 0.35);
+
+    ctx.strokeStyle = 'rgba(46, 45, 50, ' + Math.min(1, alpha).toFixed(3) + ')';
+    ctx.lineWidth = drafter.width / inch * (0.85 + Math.random() * 0.3);
+    ctx.beginPath();
+    ctx.moveTo(x - dx, y - dy);
+    ctx.quadraticCurveTo(x - dy * bend * 4, y + dx * bend * 4, x + dx, y + dy);
+    ctx.stroke();
+  }
+
+  function plasterTooth() {
+    var c = document.createElement('canvas');
+    c.width = c.height = 256;
+    var t = c.getContext('2d');
+    var image = t.createImageData(256, 256);
+    for (var i = 0; i < image.data.length; i += 4) {
+      image.data[i + 3] = 140 + Math.random() * 115;
+    }
+    t.putImageData(image, 0, 0);
+    return c;
+  }
+}
+
+function look() {
+  'use strict';
+
+  var gallery = document.getElementById('gallery');
+  var room = document.getElementById('room');
+  var width = gallery.clientWidth;
+  var height = gallery.clientHeight;
+
+  // a field of view a person would recognise, whatever the screen
+  var perspective = Math.max(width, height * 1.2) / 2 / Math.tan(37 * Math.PI / 180);
+  gallery.style.perspective = perspective + 'px';
+
+  // the six walls always hide the horizon, so floor and ceiling can simply
+  // be painted behind them, split where the horizon would be
+  var horizon = height / 2 + Math.tan(camera.pitch * Math.PI / 180) * perspective;
+  gallery.style.background =
+    'linear-gradient(to bottom, #fbfaf7 0px, #dedbd4 ' + horizon + 'px, ' +
+    '#857c6f ' + horizon + 'px, #6c6458 ' + height + 'px)';
+
+  room.style.transform =
+    'translateZ(' + perspective + 'px)' +
+    ' rotateX(' + camera.pitch + 'deg)' +
+    ' rotateY(' + (-camera.yaw) + 'deg)' +
+    ' translate3d(' + (-camera.x) + 'px, 0, ' + (-camera.z) + 'px)';
+}
+
+function walkAround() {
+  'use strict';
+
+  var gallery = document.getElementById('gallery');
+  var apothem = 800 / Math.tan(Math.PI / 6);
+  var dragging = null;
+  var last = performance.now();
+
+  gallery.addEventListener('pointerdown', function(event) {
+    dragging = { x: event.clientX, y: event.clientY };
+    camera.spin = 0;
+    gallery.classList.add('dragging');
+    gallery.setPointerCapture(event.pointerId);
+  });
+
+  gallery.addEventListener('pointermove', function(event) {
+    if (!dragging) {
+      return;
+    }
+    var dx = event.clientX - dragging.x;
+    var dy = event.clientY - dragging.y;
+    dragging = { x: event.clientX, y: event.clientY };
+    camera.yaw -= dx * 0.15;
+    camera.pitch = clamp(camera.pitch - dy * 0.1, -25, 25);
+    camera.spin = -dx * 0.15;
+    camera.idle = 0;
+  });
+
+  function release() {
+    dragging = null;
+    gallery.classList.remove('dragging');
+  }
+  gallery.addEventListener('pointerup', release);
+  gallery.addEventListener('pointercancel', release);
+
+  gallery.addEventListener('wheel', function(event) {
+    event.preventDefault();
+    walk(-event.deltaY * 0.8);
+  }, { passive: false });
+
+  window.addEventListener('keydown', function(event) {
+    var keys = { ArrowUp: [0, 60], ArrowDown: [0, -60], ArrowLeft: [-4, 0], ArrowRight: [4, 0] };
+    if (keys[event.key]) {
+      camera.yaw += keys[event.key][0];
+      walk(keys[event.key][1]);
+      camera.idle = 0;
+    }
+  });
+
+  // walk the way you are looking; you cannot walk through a wall,
+  // so stop a little before the pencil
+  function walk(distance) {
+    var yaw = camera.yaw * Math.PI / 180;
+    var x = camera.x - Math.sin(yaw) * distance;
+    var z = camera.z - Math.cos(yaw) * distance;
+    for (var i = 0; i < 6; i++) {
+      var nx = -Math.sin(i * Math.PI / 3);
+      var nz = -Math.cos(i * Math.PI / 3);
+      var over = x * nx + z * nz - (apothem - 160);
+      if (over > 0) {
+        x -= nx * over;
+        z -= nz * over;
+      }
+    }
+    camera.x = x;
+    camera.z = z;
+    camera.idle = 0;
+  }
+
+  function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+  }
+
+  // when nobody is looking around, the room slowly turns by itself
+  function tick(now) {
+    var seconds = Math.min(0.1, (now - last) / 1000);
+    last = now;
+    camera.idle += seconds;
+    if (!dragging) {
+      camera.spin *= Math.pow(0.002, seconds);
+      if (camera.idle > 4) {
+        camera.spin += (1.6 * seconds - camera.spin) * Math.min(1, seconds * 0.6);
+      }
+      camera.yaw += camera.spin;
+    }
+    look();
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+window.onresize = look;
+
+wallDrawing150();
+walkAround();
+look();
+</script>

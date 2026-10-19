@@ -1,0 +1,651 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>claude ❤︎ sol lewitt • #305</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--
+  Wall Drawing #305 (1977) - Sol LeWitt
+  The location of one hundred random specific points.
+
+  Black pencil and black crayon. First drawn by Sol LeWitt and Jo Watanabe,
+  August 1977.
+
+  Each point is marked in crayon, and next to it the drafter writes, in
+  pencil, how the point was found. The drafter only has the wall to work
+  with: its corners, the midpoints of its sides, its center, a tape measure,
+  and every point already found. So the hundredth point can be a long
+  story about the ninety-nine before it.
+
+  "Random" is the part LeWitt hands over: no point is chosen because it
+  would look good there. "Specific" is the part the drafter owes us: every
+  point can be found again by anyone who reads the wall.
+
+  The wall is ten feet high; inches are real inches.
+
+  Point at a mark to see how it was found, and everything it was found
+  from. Click anywhere else to let the drafter finish.
+
+  claude • 2026
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Kalam:wght@300&display=swap" rel="stylesheet">
+<style>
+html,body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #f3f1ec;
+}
+canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+</style>
+<canvas></canvas>
+<script>
+var drafter;
+
+function wallDrawing305() {
+  'use strict';
+
+  if (drafter) {
+    drafter.stop();
+  }
+
+  var canvas = document.getElementsByTagName('canvas')[0];
+  var ctx = canvas.getContext('2d');
+  var ratio = window.devicePixelRatio || 1;
+  var width = canvas.clientWidth;
+  var height = canvas.clientHeight;
+  canvas.width = width * ratio;
+  canvas.height = height * ratio;
+
+  var pencil = layer();
+  var p = pencil.getContext('2d');
+  var tooth = plasterTooth();
+
+  // the wall is ten feet high; the tape measure works in inches
+  var inch = height / 120;
+  var wallInches = Math.round(width / inch);
+  var margin = Math.min(width, height) * 0.07;
+  var spread = Math.sqrt(width * height / 100) * 0.42;
+  var fontSize = Math.max(8, Math.min(11, Math.sqrt(width * height) / 95));
+  var labelWidth = fontSize * 15;
+  var font = '300 ' + fontSize + 'px Kalam, "Bradley Hand", "Segoe Print", "Comic Sans MS", cursive';
+
+  // what every drafter can find without being told
+  var wall = [
+    { x: 0, y: 0, name: 'the upper left corner' },
+    { x: width, y: 0, name: 'the upper right corner' },
+    { x: width, y: height, name: 'the lower right corner' },
+    { x: 0, y: height, name: 'the lower left corner' },
+    { x: width / 2, y: 0, name: 'the midpoint of the top' },
+    { x: width, y: height / 2, name: 'the midpoint of the right side' },
+    { x: width / 2, y: height, name: 'the midpoint of the bottom' },
+    { x: 0, y: height / 2, name: 'the midpoint of the left side' },
+    { x: width / 2, y: height / 2, name: 'the center of the wall' }
+  ];
+
+  var points = [];
+  var labels = [];
+
+  // ... one hundred ...
+  for (var n = 1; n <= 100; n++) {
+    var point = locate(n);
+    point.lines = wrap(n + '. ' + point.text);
+    point.label = place(point);
+    labels.push(point.label);
+    points.push(point);
+  }
+
+  // the drafter at work: construction, then the crayon mark, then the words
+  var current = 0;
+  var progress = 0;
+  var focus = null;
+  var last = performance.now();
+  var frame = requestAnimationFrame(work);
+
+  function work(now) {
+    var seconds = Math.min(0.1, (now - last) / 1000);
+    last = now;
+    if (current < points.length) {
+      // patient at first, quicker once the method is clear
+      progress += seconds / duration(points[current], current);
+      while (progress >= 1 && current < points.length) {
+        progress -= 1;
+        current++;
+      }
+    }
+    render();
+    frame = requestAnimationFrame(work);
+  }
+
+  function duration(point, index) {
+    var pace = Math.max(0.3, 1 - index / 45);
+    return pace * (0.8 + Math.min(1.6, point.text.length * 0.012));
+  }
+
+  // ... random specific points.
+  // a few honest tries, and the one with the most room around it is kept,
+  // so the hundred points end up spread over the whole wall
+  function locate(n) {
+    var minimum = spread;
+    var candidates = [];
+    for (var attempt = 0; attempt < 600 && candidates.length < 5; attempt++) {
+      // a drafter who cannot find room keeps trying, a little less fussy
+      if (attempt && attempt % 120 === 0) {
+        minimum *= 0.8;
+      }
+      var found = method()();
+      if (found && fits(found, minimum)) {
+        found.room = room(found);
+        candidates.push(found);
+      }
+    }
+    if (!candidates.length) {
+      return named(measured(), n);
+    }
+    candidates.sort(function(a, b) { return b.room - a.room; });
+    return named(candidates[0], n);
+  }
+
+  function room(point) {
+    return wall.concat(points).reduce(function(closest, other) {
+      return Math.min(closest, Math.hypot(other.x - point.x, other.y - point.y));
+    }, Infinity);
+  }
+
+  function named(point, n) {
+    point.n = n;
+    point.name = 'point ' + n;
+    return point;
+  }
+
+  function method() {
+    var methods = [
+      [halfway, 16], [fraction, 14], [crossing, 20], [arcCrossing, 11],
+      [nearest, 10], [triangle, 9], [measured, 9], [measuredFrom, 11]
+    ];
+    var total = methods.reduce(function(sum, m) { return sum + m[1]; }, 0);
+    var r = Math.random() * total;
+    for (var i = 0; i < methods.length; i++) {
+      r -= methods[i][1];
+      if (r < 0) {
+        return methods[i][0];
+      }
+    }
+    return halfway;
+  }
+
+  // the most recent points are the ones the drafter has in mind
+  function reference(not) {
+    not = not || [];
+    for (var tries = 0; tries < 50; tries++) {
+      var choice;
+      if (!points.length || Math.random() < 0.38) {
+        choice = wall[Math.floor(Math.random() * wall.length)];
+      } else {
+        var back = Math.floor(Math.pow(Math.random(), 2.2) * points.length);
+        choice = points[points.length - 1 - back];
+      }
+      if (not.indexOf(choice) === -1) {
+        return choice;
+      }
+    }
+    return wall[8];
+  }
+
+  function halfway() {
+    var a = reference();
+    var b = reference([a]);
+    return {
+      x: (a.x + b.x) / 2,
+      y: (a.y + b.y) / 2,
+      text: 'Halfway between ' + a.name + ' and ' + b.name + '.',
+      parents: [a, b],
+      marks: [line(a, b)]
+    };
+  }
+
+  function fraction() {
+    var parts = [
+      ['One third', 1 / 3], ['Two thirds', 2 / 3], ['One quarter', 1 / 4],
+      ['Three quarters', 3 / 4], ['Two fifths', 2 / 5], ['Three fifths', 3 / 5]
+    ];
+    var part = parts[Math.floor(Math.random() * parts.length)];
+    var a = reference();
+    var b = reference([a]);
+    return {
+      x: a.x + (b.x - a.x) * part[1],
+      y: a.y + (b.y - a.y) * part[1],
+      text: part[0] + ' of the way from ' + a.name + ' to ' + b.name + '.',
+      parents: [a, b],
+      marks: [line(a, b)]
+    };
+  }
+
+  function crossing() {
+    var a = reference();
+    var b = reference([a]);
+    var c = reference([a, b]);
+    var d = reference([a, b, c]);
+    var hit = intersect(a, b, c, d);
+    if (!hit) {
+      return null;
+    }
+    return {
+      x: hit.x,
+      y: hit.y,
+      text: 'Where a line from ' + a.name + ' to ' + b.name +
+        ' crosses a line from ' + c.name + ' to ' + d.name + '.',
+      parents: [a, b, c, d],
+      marks: [line(a, b), line(c, d)]
+    };
+  }
+
+  function arcCrossing() {
+    var a = reference();
+    var b = reference([a]);
+    var c = reference([a, b]);
+    var radius = 12 + Math.floor(Math.random() * 70);
+    var r = radius * inch;
+    // the first place, going from b towards c, where the arc is met
+    var dx = c.x - b.x;
+    var dy = c.y - b.y;
+    var fx = b.x - a.x;
+    var fy = b.y - a.y;
+    var qa = dx * dx + dy * dy;
+    var qb = 2 * (fx * dx + fy * dy);
+    var qc = fx * fx + fy * fy - r * r;
+    var disc = qb * qb - 4 * qa * qc;
+    if (disc < 0) {
+      return null;
+    }
+    var roots = [(-qb - Math.sqrt(disc)) / (2 * qa), (-qb + Math.sqrt(disc)) / (2 * qa)];
+    var t = roots.filter(function(v) { return v > 0.02 && v < 0.98; })[0];
+    if (t === undefined) {
+      return null;
+    }
+    var x = b.x + dx * t;
+    var y = b.y + dy * t;
+    var angle = Math.atan2(y - a.y, x - a.x);
+    return {
+      x: x,
+      y: y,
+      text: 'Where an arc of ' + radius + ' inches drawn from ' + a.name +
+        ' first crosses a line from ' + b.name + ' to ' + c.name + '.',
+      parents: [a, b, c],
+      marks: [
+        { type: 'arc', x: a.x, y: a.y, r: r, from: angle - 0.35, to: angle + 0.35 },
+        line(b, c)
+      ]
+    };
+  }
+
+  function nearest() {
+    var a = reference();
+    var b = reference([a]);
+    var c = reference([a, b]);
+    var dx = b.x - a.x;
+    var dy = b.y - a.y;
+    var t = ((c.x - a.x) * dx + (c.y - a.y) * dy) / (dx * dx + dy * dy);
+    if (t < 0.05 || t > 0.95) {
+      return null;
+    }
+    var x = a.x + dx * t;
+    var y = a.y + dy * t;
+    return {
+      x: x,
+      y: y,
+      text: 'On a line from ' + a.name + ' to ' + b.name +
+        ', the place nearest to ' + c.name + '.',
+      parents: [a, b, c],
+      marks: [line(a, b), line(c, { x: x, y: y })]
+    };
+  }
+
+  function triangle() {
+    var a = reference();
+    var b = reference([a]);
+    var c = reference([a, b]);
+    var area = Math.abs((b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y)) / 2;
+    if (area < width * height * 0.01) {
+      return null;
+    }
+    return {
+      x: (a.x + b.x + c.x) / 3,
+      y: (a.y + b.y + c.y) / 3,
+      text: 'The center of a triangle drawn between ' + a.name + ', ' +
+        b.name + ' and ' + c.name + '.',
+      parents: [a, b, c],
+      marks: [line(a, b), line(b, c), line(c, a)]
+    };
+  }
+
+  // random, and still specific: the tape measure
+  function measured() {
+    var fromLeft = Math.random() < 0.5;
+    var fromTop = Math.random() < 0.5;
+    var across = 4 + Math.floor(Math.random() * (wallInches - 8));
+    var down = 4 + Math.floor(Math.random() * 112);
+    var x = fromLeft ? across * inch : width - across * inch;
+    var y = fromTop ? down * inch : height - down * inch;
+    return {
+      x: x,
+      y: y,
+      text: across + ' inches from the ' + (fromLeft ? 'left' : 'right') + ' side and ' +
+        down + ' inches ' + (fromTop ? 'below the top' : 'above the floor') + '.',
+      parents: [],
+      marks: [
+        line({ x: fromLeft ? 0 : width, y: y }, { x: x, y: y }),
+        line({ x: x, y: fromTop ? 0 : height }, { x: x, y: y })
+      ]
+    };
+  }
+
+  function measuredFrom() {
+    var a = reference();
+    var distance = 6 + Math.floor(Math.random() * 54);
+    var ways = [
+      ['directly above', 0, -1], ['directly below', 0, 1],
+      ['to the left of', -1, 0], ['to the right of', 1, 0]
+    ];
+    var way = ways[Math.floor(Math.random() * ways.length)];
+    var x = a.x + way[1] * distance * inch;
+    var y = a.y + way[2] * distance * inch;
+    return {
+      x: x,
+      y: y,
+      text: distance + ' inches ' + way[0] + ' ' + a.name + '.',
+      parents: [a],
+      marks: [line(a, { x: x, y: y })]
+    };
+  }
+
+  function line(a, b) {
+    return { type: 'line', x1: a.x, y1: a.y, x2: b.x, y2: b.y };
+  }
+
+  function intersect(a, b, c, d) {
+    var r = { x: b.x - a.x, y: b.y - a.y };
+    var s = { x: d.x - c.x, y: d.y - c.y };
+    var cross = r.x * s.y - r.y * s.x;
+    if (Math.abs(cross) < 1e-6) {
+      return null;
+    }
+    var t = ((c.x - a.x) * s.y - (c.y - a.y) * s.x) / cross;
+    var u = ((c.x - a.x) * r.y - (c.y - a.y) * r.x) / cross;
+    if (t < 0.03 || t > 0.97 || u < 0.03 || u > 0.97) {
+      return null;
+    }
+    return { x: a.x + r.x * t, y: a.y + r.y * t };
+  }
+
+  function fits(point, minimum) {
+    if (point.x < margin || point.x > width - margin || point.y < margin || point.y > height - margin) {
+      return false;
+    }
+    return wall.concat(points).every(function(other) {
+      return Math.hypot(other.x - point.x, other.y - point.y) > minimum;
+    });
+  }
+
+  // the drafter writes small, in short lines, close to the point
+  function wrap(text) {
+    p.font = font;
+    var words = text.split(' ');
+    var lines = [];
+    var current = '';
+    words.forEach(function(word) {
+      var attempt = current ? current + ' ' + word : word;
+      if (p.measureText(attempt).width > labelWidth && current) {
+        lines.push(current);
+        current = word;
+      } else {
+        current = attempt;
+      }
+    });
+    lines.push(current);
+    return lines;
+  }
+
+  // next to the point, wherever it bumps into the fewest other words
+  function place(point) {
+    p.font = font;
+    var w = Math.max.apply(null, point.lines.map(function(l) { return p.measureText(l).width; }));
+    var h = point.lines.length * fontSize * 1.25;
+    var gap = 7;
+    var options = [
+      [gap, -fontSize * 0.7], [gap, -h + fontSize * 0.3], [-gap - w, -fontSize * 0.7],
+      [-gap - w, -h + fontSize * 0.3], [-w / 2, gap], [-w / 2, -gap - h],
+      [gap, gap], [-gap - w, gap], [gap, -gap - h], [-gap - w, -gap - h]
+    ];
+    var best = null;
+    options.forEach(function(o) {
+      var box = { x: point.x + o[0], y: point.y + o[1], w: w, h: h };
+      var cost = 0;
+      labels.forEach(function(other) {
+        cost += overlap(box, other);
+      });
+      points.forEach(function(other) {
+        if (other.x > box.x - 4 && other.x < box.x + w + 4 && other.y > box.y - 4 && other.y < box.y + h + 4) {
+          cost += 400;
+        }
+      });
+      var outside = Math.max(0, 4 - box.x) + Math.max(0, box.x + w - width + 4) +
+        Math.max(0, 4 - box.y) + Math.max(0, box.y + h - height + 4);
+      cost += outside * 200;
+      if (!best || cost < best.cost) {
+        best = { box: box, cost: cost };
+      }
+    });
+    return best.box;
+  }
+
+  function overlap(a, b) {
+    var x = Math.max(0, Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x));
+    var y = Math.max(0, Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y));
+    return x * y;
+  }
+
+  // the history of a point: the point itself and everything it came from
+  function lineage(point) {
+    var depth = new Map();
+    (function visit(pt, d) {
+      if (pt.n === undefined || (depth.has(pt) && depth.get(pt) <= d)) {
+        return;
+      }
+      depth.set(pt, d);
+      pt.parents.forEach(function(parent) {
+        visit(parent, d + 1);
+      });
+    })(point, 0);
+    return depth;
+  }
+
+  function render() {
+    p.setTransform(ratio, 0, 0, ratio, 0, 0);
+    p.clearRect(0, 0, width, height);
+    p.lineCap = 'round';
+
+    var family = focus ? lineage(focus) : null;
+
+    for (var i = 0; i <= Math.min(current, points.length - 1); i++) {
+      var point = points[i];
+      var t = i < current ? 1 : progress;
+      var depth = family && family.has(point) ? family.get(point) : -1;
+      var lit = depth > -1 ? Math.pow(0.62, depth) : 0;
+
+      // construction, in a hard pencil, almost erased once it has served
+      var build = Math.min(1, t / 0.45);
+      var faint = i < current ? (family ? 0.035 : 0.07) : 0.3;
+      p.strokeStyle = 'rgba(52, 50, 56, ' + Math.max(faint, lit * 0.6) + ')';
+      p.lineWidth = lit ? 0.8 : 0.6;
+      point.marks.forEach(function(mark) {
+        trace(mark, build);
+      });
+
+      if (t > 0.45) {
+        // the crayon mark
+        p.fillStyle = 'rgba(22, 21, 24, 0.92)';
+        p.beginPath();
+        p.arc(point.x, point.y, lit ? 3 : 2.2, 0, Math.PI * 2);
+        p.fill();
+      }
+
+      if (t > 0.55) {
+        var letters = Math.floor((t - 0.55) / 0.4 * point.lines.join(' ').length);
+        var quiet = family ? 0.2 : 0.42;
+        write(point, i < current ? Infinity : letters, depth === 0 ? 1 : (lit ? 0.4 + lit * 0.5 : quiet));
+      }
+    }
+
+    // the wall's own points, only when a lineage reaches back to them
+    if (family) {
+      p.strokeStyle = 'rgba(52, 50, 56, 0.5)';
+      p.lineWidth = 0.8;
+      wall.forEach(function(ref) {
+        var used = Array.from(family.keys()).some(function(pt) {
+          return pt.parents.indexOf(ref) > -1;
+        });
+        if (used) {
+          p.beginPath();
+          p.arc(ref.x, ref.y, 6, 0, Math.PI * 2);
+          p.stroke();
+        }
+      });
+    }
+
+    // graphite only catches on the tooth of the plaster
+    p.setTransform(1, 0, 0, 1, 0, 0);
+    p.globalCompositeOperation = 'destination-in';
+    p.fillStyle = p.createPattern(tooth, 'repeat');
+    p.fillRect(0, 0, pencil.width, pencil.height);
+    p.globalCompositeOperation = 'source-over';
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = '#f3f1ec';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.drawImage(pencil, 0, 0);
+
+    // when you look closely at one point, the words around it step back
+    if (focus) {
+      var box = focus.label;
+      ctx.save();
+      ctx.scale(ratio, ratio);
+      ctx.fillStyle = 'rgba(243, 241, 236, 0.92)';
+      ctx.fillRect(box.x - 5, box.y - 4, box.w + 10, box.h + 6);
+      write(focus, Infinity, 1, ctx);
+      ctx.restore();
+    }
+  }
+
+  function trace(mark, amount) {
+    p.beginPath();
+    if (mark.type === 'line') {
+      p.moveTo(mark.x1, mark.y1);
+      p.lineTo(mark.x1 + (mark.x2 - mark.x1) * amount, mark.y1 + (mark.y2 - mark.y1) * amount);
+    } else {
+      p.arc(mark.x, mark.y, mark.r, mark.from, mark.from + (mark.to - mark.from) * amount);
+    }
+    p.stroke();
+  }
+
+  function write(point, letters, alpha, target) {
+    var g = target || p;
+    g.font = font;
+    g.textBaseline = 'top';
+    g.fillStyle = 'rgba(40, 39, 44, ' + alpha + ')';
+    var left = letters;
+    point.lines.forEach(function(text, row) {
+      if (left <= 0) {
+        return;
+      }
+      var shown = text.slice(0, Math.max(0, left));
+      left -= text.length + 1;
+      g.fillText(shown, point.label.x, point.label.y + row * fontSize * 1.25);
+    });
+  }
+
+  function layer() {
+    var l = document.createElement('canvas');
+    l.width = width * ratio;
+    l.height = height * ratio;
+    return l;
+  }
+
+  function plasterTooth() {
+    var c = document.createElement('canvas');
+    c.width = c.height = 256;
+    var t = c.getContext('2d');
+    var image = t.createImageData(256, 256);
+    for (var i = 0; i < image.data.length; i += 4) {
+      image.data[i + 3] = 165 + Math.random() * 90;
+    }
+    t.putImageData(image, 0, 0);
+    return c;
+  }
+
+  function pointAt(x, y) {
+    var found = null;
+    var best = 18;
+    points.slice(0, current + 1).forEach(function(point) {
+      var d = Math.hypot(point.x - x, point.y - y);
+      if (d < best) {
+        best = d;
+        found = point;
+      }
+    });
+    return found;
+  }
+
+  function onMove(event) {
+    focus = pointAt(event.clientX, event.clientY);
+    canvas.style.cursor = focus ? 'crosshair' : 'default';
+  }
+
+  function onClick(event) {
+    var hit = pointAt(event.clientX, event.clientY);
+    if (hit) {
+      focus = hit;
+    } else if (current < points.length) {
+      // let the drafter finish
+      current = points.length;
+    } else {
+      focus = null;
+    }
+  }
+
+  canvas.addEventListener('pointermove', onMove);
+  canvas.addEventListener('click', onClick);
+
+  return {
+    points: points,
+    stop: function() {
+      cancelAnimationFrame(frame);
+      canvas.removeEventListener('pointermove', onMove);
+      canvas.removeEventListener('click', onClick);
+    }
+  };
+}
+
+var resizing;
+window.onresize = function() {
+  clearTimeout(resizing);
+  resizing = setTimeout(function() {
+    drafter = wallDrawing305();
+  }, 300);
+};
+
+// the drafter waits a moment for the pencil (the handwriting font), but
+// not forever: any hand will do
+Promise.race([
+  document.fonts ? document.fonts.load('300 12px Kalam') : Promise.resolve(),
+  new Promise(function(resolve) { setTimeout(resolve, 1500); })
+]).catch(function() {}).then(function() {
+  drafter = wallDrawing305();
+});
+</script>
