@@ -1,0 +1,394 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>claude ❤︎ sol lewitt • #681 C</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--
+  Wall Drawing #681 C (1993) - Sol LeWitt
+  A wall divided vertically into four equal squares separated and bordered
+  by black bands. Within each square, bands in one of four directions,
+  each with color ink washes superimposed.
+
+  Color ink washes. 120 x 444 inches. National Gallery of Art, Washington,
+  Dorothy and Herbert Vogel Collection.
+
+  The measurements decide everything: four squares and five black bands
+  across 444 inches, one square and two bands up 120 inches. That leaves
+  96 inch squares and 12 inch bands, no other way.
+
+  From left to right: vertical bands, horizontal bands, diagonal bands
+  rising to the right, diagonal bands falling to the right.
+
+  LeWitt's inks are four: gray, yellow, red and blue. The drafters wipe
+  them on with rags, one thin layer over the other, and every colour on
+  the wall is made from those four. Each square starts from one colour;
+  the second and third washes make the bands. Point at a band to read
+  its washes the way the drafters write them down: Y R B.
+
+  claude • 2026
+-->
+<style>
+html,body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #eeece7;
+}
+canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+#code {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 0 16px 14px;
+  color: rgba(40, 38, 34, 0.6);
+  font: 11px/1.4 "Helvetica Neue", Helvetica, Arial, sans-serif;
+  letter-spacing: 0.08em;
+  pointer-events: none;
+}
+</style>
+<canvas></canvas>
+<div id="code"></div>
+<script>
+// LeWitt's four inks, as they look when wiped thin onto a white wall
+var INKS = {
+  G: { name: 'gray', rgb: [118, 118, 116] },
+  Y: { name: 'yellow', rgb: [246, 200, 0] },
+  R: { name: 'red', rgb: [206, 36, 44] },
+  B: { name: 'blue', rgb: [26, 72, 160] }
+};
+
+var wall;
+var frame;
+
+function wallDrawing681C() {
+  'use strict';
+
+  cancelAnimationFrame(frame);
+
+  var canvas = document.getElementsByTagName('canvas')[0];
+  var ctx = canvas.getContext('2d');
+  var ratio = window.devicePixelRatio || 1;
+  var width = canvas.clientWidth;
+  var height = canvas.clientHeight;
+  canvas.width = width * ratio;
+  canvas.height = height * ratio;
+
+  // 444 x 120 inches: 96 inch squares, 12 inch black bands. On a screen
+  // held upright the wall turns with it and the squares stack.
+  var upright = height > width * 1.2;
+  var long = 444;
+  var short = 120;
+  var room = upright ? Math.min(width * 0.86 / short, height * 0.84 / long) : Math.min(width * 0.92 / long, height * 0.8 / short);
+  var inch = room;
+  var band = 12 * inch;
+  var side = 96 * inch;
+  var wallWidth = (upright ? short : long) * inch;
+  var wallHeight = (upright ? long : short) * inch;
+  var left = (width - wallWidth) / 2;
+  var top = (height - wallHeight) / 2 - (upright ? 0 : height * 0.02);
+
+  // ... bands in one of four directions ...
+  var directions = [
+    { name: 'vertical', angle: Math.PI / 2 },
+    { name: 'horizontal', angle: 0 },
+    { name: 'diagonal, rising to the right', angle: -Math.PI / 4 },
+    { name: 'diagonal, falling to the right', angle: Math.PI / 4 }
+  ];
+  // ... each square begins with one colour ...
+  var firsts = ['Y', 'R', 'B', 'G'];
+  var bandsPerSquare = 8;
+
+  var squares = directions.map(function(direction, i) {
+    var x = left + (upright ? band : band + i * (side + band));
+    var y = top + (upright ? band + i * (side + band) : band);
+    return {
+      x: x,
+      y: y,
+      direction: direction,
+      bands: bandsFor(direction, firsts[i], x, y)
+    };
+  });
+
+  wall = { squares: squares, side: side };
+
+  var rag = ragTexture();
+  var sheen = (function() {
+    var tint = document.createElement('canvas');
+    tint.width = rag.width;
+    tint.height = rag.height;
+    var t = tint.getContext('2d');
+    t.fillStyle = '#9a968e';
+    t.fillRect(0, 0, tint.width, tint.height);
+    t.globalCompositeOperation = 'destination-in';
+    t.drawImage(rag, 0, 0);
+    t.globalCompositeOperation = 'destination-out';
+    t.globalAlpha = 0.6;
+    t.drawImage(rag, 0, 0);
+    return ctx.createPattern(tint, 'repeat');
+  })();
+  var washes = [];
+  squares.forEach(function(square, s) {
+    square.bands.forEach(function(b) {
+      b.code.forEach(function(ink, layer) {
+        washes.push({ square: s, band: b, ink: ink, layer: layer });
+      });
+    });
+  });
+
+  // the drafters work in rounds: the first wash everywhere, then the second,
+  // then the third, letting each layer dry before the next
+  var paint = document.createElement('canvas');
+  paint.width = canvas.width;
+  paint.height = canvas.height;
+  var p = paint.getContext('2d');
+  // the squares are primed white before any ink goes on
+  p.fillStyle = '#f7f5f0';
+  squares.forEach(function(square) {
+    p.fillRect(square.x * ratio, square.y * ratio, side * ratio, side * ratio);
+  });
+
+  var applied = 0;
+  var started = performance.now();
+  var perLayer = 2200;
+
+  function draw(now) {
+    var elapsed = now - started;
+    var layer = Math.floor(elapsed / perLayer);
+    var within = (elapsed % perLayer) / perLayer;
+    washes.forEach(function(wash, i) {
+      if (wash.applied) {
+        return;
+      }
+      // within a round the squares are washed from left to right
+      var turn = (wash.square + wash.band.index / squares[wash.square].bands.length) / 4;
+      if (wash.layer < layer || (wash.layer === layer && within > turn * 0.85)) {
+        apply(wash);
+        wash.applied = true;
+        applied++;
+      }
+    });
+    render();
+    if (applied < washes.length) {
+      frame = requestAnimationFrame(draw);
+    }
+  }
+
+  frame = requestAnimationFrame(draw);
+
+  function bandsFor(direction, first, x, y) {
+    var bands = [];
+    var ux = Math.cos(direction.angle);
+    var uy = Math.sin(direction.angle);
+    var nx = -uy;
+    var ny = ux;
+    var cx = x + side / 2;
+    var cy = y + side / 2;
+    // every band is twelve inches wide, whatever its direction; across a
+    // diagonal that takes more of them, and the corners get the remnants
+    var across = Math.abs(nx) * side + Math.abs(ny) * side;
+    var bandWidth = side / bandsPerSquare;
+    var count = Math.ceil(across / bandWidth - 0.001);
+    var previous = null;
+    var reach = side * 1.5;
+    for (var i = 0; i < count; i++) {
+      var from = -count * bandWidth / 2 + i * bandWidth;
+      var to = from + bandWidth;
+      var code;
+      // no two neighbouring bands the same, and never three of one ink
+      do {
+        code = [first, pick(), pick()];
+      } while ((previous && code.join('') === previous) || (code[1] === first && code[2] === first));
+      previous = code.join('');
+      bands.push({
+        index: i,
+        code: code,
+        polygon: [
+          [cx + nx * from - ux * reach, cy + ny * from - uy * reach],
+          [cx + nx * from + ux * reach, cy + ny * from + uy * reach],
+          [cx + nx * to + ux * reach, cy + ny * to + uy * reach],
+          [cx + nx * to - ux * reach, cy + ny * to - uy * reach]
+        ],
+        angle: direction.angle,
+        clip: { x: x, y: y }
+      });
+    }
+    return bands;
+  }
+
+  // gray is used sparingly; it quiets every colour it touches
+  function pick() {
+    return 'GYYRRBB'[Math.floor(Math.random() * 7)];
+  }
+
+  // a thin layer of ink, wiped on with a rag along the band: it multiplies
+  // with whatever is underneath, and it is never quite even
+  function apply(wash) {
+    var b = wash.band;
+    var w = Math.ceil(side * ratio);
+    var layer = document.createElement('canvas');
+    layer.width = w;
+    layer.height = w;
+    var l = layer.getContext('2d');
+    l.scale(ratio, ratio);
+    l.translate(-b.clip.x, -b.clip.y);
+    var rgb = INKS[wash.ink].rgb;
+    l.fillStyle = 'rgb(' + rgb.join(',') + ')';
+    l.beginPath();
+    b.polygon.forEach(function(pt, i) {
+      if (i) {
+        l.lineTo(pt[0], pt[1]);
+      } else {
+        l.moveTo(pt[0], pt[1]);
+      }
+    });
+    l.closePath();
+    l.fill();
+
+    // the rag: streaks along the band, a different stretch of cloth each time
+    l.setTransform(1, 0, 0, 1, 0, 0);
+    l.globalCompositeOperation = 'destination-in';
+    l.translate(w / 2, w / 2);
+    l.rotate(b.angle + (Math.random() - 0.5) * 0.04);
+    l.drawImage(rag, -rag.width / 2 - Math.random() * rag.width * 0.3, -rag.height / 2 - Math.random() * rag.height * 0.3, rag.width * 1.6, rag.height * 1.6);
+
+    p.save();
+    p.globalCompositeOperation = 'multiply';
+    p.globalAlpha = wash.ink === 'G' ? 0.45 : 0.68;
+    p.drawImage(layer, Math.round(b.clip.x * ratio), Math.round(b.clip.y * ratio));
+    p.restore();
+  }
+
+  function render() {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = '#eeece7';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.drawImage(paint, 0, 0);
+
+    // ... separated and bordered by black bands. India ink, flat and deep.
+    ctx.scale(ratio, ratio);
+    ctx.fillStyle = '#141313';
+    ctx.beginPath();
+    ctx.rect(left, top, wallWidth, wallHeight);
+    squares.forEach(function(square) {
+      ctx.rect(square.x, square.y, side, side);
+    });
+    ctx.fill('evenodd');
+
+    // ink, not paint: the rag leaves a faint grain even in the black
+    ctx.save();
+    ctx.clip('evenodd');
+    ctx.globalAlpha = 0.07;
+    ctx.fillStyle = sheen;
+    ctx.fillRect(left, top, wallWidth, wallHeight);
+    ctx.restore();
+  }
+
+  function ragTexture() {
+    var size = 512;
+    var c = document.createElement('canvas');
+    c.width = size;
+    c.height = size;
+    var t = c.getContext('2d');
+    var image = t.createImageData(size, size);
+    var seed = Math.random() * 1000;
+    for (var y = 0; y < size; y++) {
+      for (var x = 0; x < size; x++) {
+        // long streaks one way, short mottling the other
+        var v = 0.55 * fbm(x * 0.006 + seed, y * 0.06) + 0.45 * fbm(x * 0.03 + seed * 2, y * 0.03 + 50);
+        var alpha = 0.6 + 0.45 * v;
+        image.data[(y * size + x) * 4 + 3] = Math.max(0, Math.min(255, alpha * 255));
+      }
+    }
+    t.putImageData(image, 0, 0);
+    return c;
+  }
+
+  function fbm(x, y) {
+    var total = 0;
+    var amplitude = 0.5;
+    for (var o = 0; o < 4; o++) {
+      total += amplitude * (valueNoise(x, y) - 0.5);
+      x *= 2.1;
+      y *= 2.1;
+      amplitude *= 0.5;
+    }
+    return total;
+  }
+
+  function valueNoise(x, y) {
+    var x0 = Math.floor(x);
+    var y0 = Math.floor(y);
+    var fx = x - x0;
+    var fy = y - y0;
+    var sx = fx * fx * (3 - 2 * fx);
+    var sy = fy * fy * (3 - 2 * fy);
+    var a = lattice(x0, y0);
+    var b = lattice(x0 + 1, y0);
+    var c = lattice(x0, y0 + 1);
+    var d = lattice(x0 + 1, y0 + 1);
+    return a + (b - a) * sx + (c - a) * sy + (a - b - c + d) * sx * sy;
+  }
+
+  function lattice(x, y) {
+    var h = Math.imul(x | 0, 374761393) + Math.imul(y | 0, 668265263);
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+  }
+}
+
+// the drafters' notation for the band under the pointer
+function readBand(x, y) {
+  'use strict';
+
+  if (!wall) {
+    return '';
+  }
+  for (var s = 0; s < wall.squares.length; s++) {
+    var square = wall.squares[s];
+    if (x < square.x || y < square.y || x > square.x + wall.side || y > square.y + wall.side) {
+      continue;
+    }
+    for (var b = 0; b < square.bands.length; b++) {
+      var band = square.bands[b];
+      if (contains(band.polygon, x, y)) {
+        return 'square ' + (s + 1) + ', ' + square.direction.name + ' bands  ·  ' +
+          band.code.join(' ') + '  ·  ' + band.code.map(function(ink) { return INKS[ink].name; }).join(', then ');
+      }
+    }
+  }
+  return '';
+}
+
+function contains(polygon, x, y) {
+  var inside = false;
+  for (var i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    var xi = polygon[i][0];
+    var yi = polygon[i][1];
+    var xj = polygon[j][0];
+    var yj = polygon[j][1];
+    if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+document.getElementsByTagName('canvas')[0].addEventListener('pointermove', function(event) {
+  document.getElementById('code').textContent = readBand(event.clientX, event.clientY);
+});
+
+var resizing;
+window.onresize = function() {
+  clearTimeout(resizing);
+  resizing = setTimeout(wallDrawing681C, 200);
+};
+
+wallDrawing681C();
+</script>
