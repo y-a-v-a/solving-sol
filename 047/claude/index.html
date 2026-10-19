@@ -1,0 +1,257 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>claude ❤︎ sol lewitt • #047</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--
+  Wall Drawing #47 (1970) - Sol LeWitt
+  A wall divided into fifteen equal parts, each with a different line
+  direction, and all combinations.
+
+  Black pencil. First drawn by Kazuko Miyamoto, June 1970.
+
+  Four directions, numbered the way the drafters number them:
+  1 vertical, 2 horizontal, 3 diagonal right, 4 diagonal left.
+  Fifteen is every way of choosing from four, without choosing nothing:
+  4 + 6 + 4 + 1. The wall does the counting; the drafter only follows.
+
+  The drafter works one direction at a time across all the parts that ask
+  for it, the way the drawing is actually made on a wall: first every
+  vertical, then every horizontal, then the diagonals. Watch the darkness
+  pile up from left to right.
+
+  claude • 2026
+-->
+<style>
+html,body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background: #e9e5dc;
+  overflow: hidden;
+}
+canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+</style>
+<canvas></canvas>
+<script>
+var frame;
+
+function wallDrawing47() {
+  'use strict';
+
+  cancelAnimationFrame(frame);
+
+  var canvas = document.getElementsByTagName('canvas')[0];
+  var ctx = canvas.getContext('2d');
+  var ratio = window.devicePixelRatio || 1;
+  var width = canvas.clientWidth;
+  var height = canvas.clientHeight;
+
+  canvas.width = width * ratio;
+  canvas.height = height * ratio;
+
+  // the pencil layer and the plaster are kept apart, so the graphite can
+  // catch on the tooth of the wall without the wall itself getting darker
+  var graphite = layer();
+  var g = graphite.getContext('2d');
+  var tooth = plasterTooth();
+  var view = layer();
+  var v = view.getContext('2d');
+
+  // the wall, with a little air above the floor and below the ceiling
+  var marginX = Math.round(width * 0.04);
+  var marginTop = Math.round(height * 0.07);
+  var marginBottom = Math.round(height * 0.11);
+  var wallWidth = width - 2 * marginX;
+  var wallHeight = height - marginTop - marginBottom;
+
+  // ... a wall divided into fifteen equal parts, ...
+  var parts = combinations([1, 2, 3, 4]);
+  var partWidth = wallWidth / parts.length;
+
+  // a 6H pencil leaves a narrow, pale line; the lines sit close together
+  var spacing = Math.max(3.2, Math.min(width, height) / 170);
+
+  // ... each with a different line direction, and all combinations.
+  // The drafter's itinerary: all of direction 1, then 2, then 3, then 4.
+  var strokes = [];
+  [1, 2, 3, 4].forEach(function(direction) {
+    parts.forEach(function(part, index) {
+      if (part.indexOf(direction) > -1) {
+        strokes = strokes.concat(linesFor(direction, index));
+      }
+    });
+  });
+
+  var drawn = 0;
+  var perFrame = Math.ceil(strokes.length / 900);
+
+  function draft() {
+    var until = Math.min(strokes.length, drawn + perFrame);
+    for (; drawn < until; drawn++) {
+      pencil(strokes[drawn]);
+    }
+    present();
+    if (drawn < strokes.length) {
+      frame = requestAnimationFrame(draft);
+    }
+  }
+
+  notation();
+  draft();
+
+  // every non-empty choice from the four directions, smallest first,
+  // in the order a list of them is naturally written down
+  function combinations(set) {
+    var all = [];
+    for (var mask = 1; mask < 1 << set.length; mask++) {
+      var pick = set.filter(function(item, i) {
+        return mask & (1 << i);
+      });
+      all.push(pick);
+    }
+    return all.sort(function(a, b) {
+      return a.length - b.length || a.join('') - b.join('');
+    });
+  }
+
+  function linesFor(direction, index) {
+    var left = marginX + index * partWidth;
+    var right = left + partWidth;
+    var top = marginTop;
+    var bottom = top + wallHeight;
+    var lines = [];
+    var offset;
+    // a slight random start so neighbouring parts never line up perfectly
+    var start = Math.random() * spacing;
+
+    if (direction === 1) {
+      for (offset = left + start; offset < right; offset += spacing) {
+        lines.push({ x1: offset, y1: top, x2: offset, y2: bottom, part: index });
+      }
+    }
+    if (direction === 2) {
+      for (offset = top + start; offset < bottom; offset += spacing) {
+        lines.push({ x1: left, y1: offset, x2: right, y2: offset, part: index });
+      }
+    }
+    // diagonals at 45 degrees; the perpendicular spacing stays the same
+    var step = spacing * Math.SQRT2;
+    if (direction === 3) {
+      // diagonal right: from lower left to upper right
+      for (offset = left - wallHeight + start; offset < right; offset += step) {
+        lines.push({ x1: offset, y1: bottom, x2: offset + wallHeight, y2: top, part: index });
+      }
+    }
+    if (direction === 4) {
+      // diagonal left: from upper left to lower right
+      for (offset = left - wallHeight + start; offset < right; offset += step) {
+        lines.push({ x1: offset, y1: top, x2: offset + wallHeight, y2: bottom, part: index });
+      }
+    }
+    return lines;
+  }
+
+  function pencil(line) {
+    var left = marginX + line.part * partWidth;
+
+    g.save();
+    // the parts are taped off, so every edge is clean
+    g.beginPath();
+    g.rect(left, marginTop, partWidth, wallHeight);
+    g.clip();
+
+    // a hard pencil against a ruler: straight, but the pressure wanders
+    var length = Math.hypot(line.x2 - line.x1, line.y2 - line.y1);
+    var pieces = Math.max(1, Math.round(length / 24));
+    var pressure = 0.55 + Math.random() * 0.25;
+    var x = line.x1;
+    var y = line.y1;
+
+    g.lineCap = 'round';
+    g.lineWidth = 0.55 + Math.random() * 0.3;
+    for (var i = 1; i <= pieces; i++) {
+      var t = i / pieces;
+      var nx = line.x1 + (line.x2 - line.x1) * t;
+      var ny = line.y1 + (line.y2 - line.y1) * t;
+      pressure = Math.min(0.9, Math.max(0.35, pressure + (Math.random() - 0.5) * 0.12));
+      g.strokeStyle = 'rgba(48, 47, 52, ' + pressure.toFixed(3) + ')';
+      g.beginPath();
+      g.moveTo(x, y);
+      g.lineTo(nx, ny);
+      g.stroke();
+      x = nx;
+      y = ny;
+    }
+    g.restore();
+  }
+
+  // the small numbers a drafter pencils near the floor, so the next one
+  // knows what was meant; they are part of the system, so they stay
+  function notation() {
+    g.save();
+    g.fillStyle = 'rgba(48, 47, 52, 0.55)';
+    g.textAlign = 'center';
+    g.textBaseline = 'top';
+    // on a narrow wall the drafter writes smaller and leaves out the spaces
+    var size = Math.min(11, Math.max(7, partWidth / 9));
+    var separator = ' ';
+    g.font = size + 'px "Helvetica Neue", Helvetica, Arial, sans-serif';
+    if (g.measureText('1 2 3 4').width > partWidth * 0.85) {
+      separator = '';
+      size = Math.min(size, partWidth * 0.85 / (g.measureText('1234').width / size));
+      g.font = size + 'px "Helvetica Neue", Helvetica, Arial, sans-serif';
+    }
+    parts.forEach(function(part, index) {
+      g.fillText(part.join(separator), marginX + (index + 0.5) * partWidth, marginTop + wallHeight + 12);
+    });
+    g.restore();
+  }
+
+  function present() {
+    v.globalCompositeOperation = 'copy';
+    v.drawImage(graphite, 0, 0, width, height);
+    // graphite only sticks where the plaster lets it
+    v.globalCompositeOperation = 'destination-in';
+    v.drawImage(tooth, 0, 0, width, height);
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = '#e9e5dc';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(view, 0, 0);
+  }
+
+  function layer() {
+    var c = document.createElement('canvas');
+    c.width = width * ratio;
+    c.height = height * ratio;
+    c.getContext('2d').scale(ratio, ratio);
+    return c;
+  }
+
+  function plasterTooth() {
+    var c = document.createElement('canvas');
+    c.width = width * ratio;
+    c.height = height * ratio;
+    var t = c.getContext('2d');
+    var image = t.createImageData(c.width, c.height);
+    for (var i = 0; i < image.data.length; i += 4) {
+      image.data[i + 3] = 150 + Math.random() * 105;
+    }
+    t.putImageData(image, 0, 0);
+    return c;
+  }
+}
+
+var resizing;
+window.onresize = function() {
+  clearTimeout(resizing);
+  resizing = setTimeout(wallDrawing47, 200);
+};
+
+wallDrawing47();
+</script>
